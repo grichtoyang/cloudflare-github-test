@@ -24,19 +24,50 @@ def load_taifex(date: str) -> dict:
 
     url = f"{GITHUB_RAW_BASE}/taifex/{date}.json"
 
-    data = load_json(url)
+    wrapper = load_json(url)
 
-    # 基本資料驗證
-    if not isinstance(data, dict):
+    # ----------------------------------------
+    # 第一層：GitHub 儲存的資料封裝
+    # ----------------------------------------
+    if not isinstance(wrapper, dict):
         raise ValueError("TAIFEX data is not a JSON object")
 
-    if not data.get("ok"):
-        raise ValueError("TAIFEX data status is not OK")
-
-    if data.get("source") != "TAIFEX":
+    if wrapper.get("source") != "TAIFEX":
         raise ValueError("Invalid TAIFEX source")
 
-    return data
+    # ----------------------------------------
+    # 第二層：Proxy 回傳結果
+    # ----------------------------------------
+    proxy_data = wrapper.get("data")
+
+    if not isinstance(proxy_data, dict):
+        raise ValueError("TAIFEX proxy data is missing")
+
+    if proxy_data.get("ok") is not True:
+        raise ValueError("TAIFEX proxy status is not OK")
+
+    # ----------------------------------------
+    # 第三層：TAIFEX datasets
+    # ----------------------------------------
+    datasets = proxy_data.get("data")
+
+    if not isinstance(datasets, dict):
+        raise ValueError("TAIFEX datasets are missing")
+
+    # 至少確認三個核心資料集存在
+    required_datasets = [
+        "futures_price",
+        "futures_institutional",
+        "futures_institutional_oi",
+    ]
+
+    for name in required_datasets:
+        if name not in datasets:
+            raise ValueError(
+                f"TAIFEX dataset missing: {name}"
+            )
+
+    return wrapper
 
 
 if __name__ == "__main__":
@@ -44,19 +75,32 @@ if __name__ == "__main__":
     TEST_DATE = "2026-09-09"
 
     print("=" * 60)
-    print("TAIFEX Loader V1.0")
+    print("TAIFEX Loader V1.1")
     print("=" * 60)
 
     data = load_taifex(TEST_DATE)
 
+    proxy_data = data["data"]
+    datasets = proxy_data["data"]
+
     print(f"Date: {TEST_DATE}")
-    print("TAIFEX data loaded successfully.")
+    print("Source: TAIFEX")
+    print("Proxy status: OK")
     print()
 
-    print(
-        json.dumps(
-            data,
-            ensure_ascii=False,
-            indent=2
-        )
-    )
+    print("TAIFEX datasets:")
+
+    for name, dataset in datasets.items():
+
+        if isinstance(dataset, dict):
+            rows = dataset.get("data", [])
+
+            if isinstance(rows, list):
+                print(f"  {name}: {len(rows)} rows")
+            else:
+                print(f"  {name}: OK")
+        else:
+            print(f"  {name}: OK")
+
+    print()
+    print("TAIFEX Loader: PASS")
