@@ -1,7 +1,7 @@
 {
   "ok": true,
   "test": "Cloudflare Worker → TAIFEX Proxy → GitHub",
-  "timestamp": "2026-09-09T14:33:42.045Z",
+  "timestamp": "2026-09-09T14:33:54.361Z",
   "taifex": {
     "http_status": 404,
     "fetch_ok": false,
