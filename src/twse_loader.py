@@ -24,19 +24,29 @@ def load_twse(date: str) -> dict:
 
     url = f"{GITHUB_RAW_BASE}/twse/{date}.json"
 
-    data = load_json(url)
+    wrapper = load_json(url)
 
-    # 基本資料驗證
-    if not isinstance(data, dict):
+    # ----------------------------------------
+    # 第一層：GitHub 儲存的資料封裝
+    # ----------------------------------------
+    if not isinstance(wrapper, dict):
         raise ValueError("TWSE data is not a JSON object")
 
-    if not data.get("ok"):
-        raise ValueError("TWSE data status is not OK")
-
-    if data.get("source") != "TWSE":
+    if wrapper.get("source") != "TWSE":
         raise ValueError("Invalid TWSE source")
 
-    return data
+    # ----------------------------------------
+    # 第二層：TWSE Proxy 回傳結果
+    # ----------------------------------------
+    proxy_data = wrapper.get("data")
+
+    if not isinstance(proxy_data, dict):
+        raise ValueError("TWSE proxy data is missing")
+
+    if proxy_data.get("ok") is not True:
+        raise ValueError("TWSE proxy status is not OK")
+
+    return wrapper
 
 
 if __name__ == "__main__":
@@ -44,19 +54,22 @@ if __name__ == "__main__":
     TEST_DATE = "2026-09-09"
 
     print("=" * 60)
-    print("TWSE Loader V1.0")
+    print("TWSE Loader V1.1")
     print("=" * 60)
 
     data = load_twse(TEST_DATE)
 
-    print(f"Date: {TEST_DATE}")
-    print("TWSE data loaded successfully.")
-    print()
+    proxy_data = data["data"]
 
-    print(
-        json.dumps(
-            data,
-            ensure_ascii=False,
-            indent=2
-        )
-    )
+    print(f"Date: {TEST_DATE}")
+    print("Source: TWSE")
+    print("Proxy status: OK")
+
+    # 顯示 TWSE tables 數量
+    tables = proxy_data.get("data", {}).get("tables", [])
+
+    if isinstance(tables, list):
+        print(f"TWSE tables: {len(tables)}")
+
+    print()
+    print("TWSE Loader: PASS")
