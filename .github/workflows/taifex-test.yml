@@ -2,9 +2,12 @@ name: TAIFEX Python Test
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
 
 jobs:
-  test:
+  test-python:
     runs-on: ubuntu-latest
 
     steps:
@@ -16,6 +19,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run TAIFEX Python Test
+      - name: Run Python test
         run: |
           python test_taifex.py
