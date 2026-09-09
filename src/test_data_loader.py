@@ -14,11 +14,13 @@ def test_taifex():
 
     data = load_taifex(TEST_DATE)
 
+    proxy_data = data["data"]
+
     print(f"Date   : {TEST_DATE}")
     print(f"Source : {data.get('source')}")
-    print(f"Status : {data.get('ok')}")
+    print(f"Status : {proxy_data.get('ok')}")
 
-    assert data.get("ok") is True
+    assert proxy_data.get("ok") is True
     assert data.get("source") == "TAIFEX"
 
     print("TAIFEX: PASS")
@@ -32,11 +34,13 @@ def test_twse():
 
     data = load_twse(TEST_DATE)
 
+    proxy_data = data["data"]
+
     print(f"Date   : {TEST_DATE}")
     print(f"Source : {data.get('source')}")
-    print(f"Status : {data.get('ok')}")
+    print(f"Status : {proxy_data.get('ok')}")
 
-    assert data.get("ok") is True
+    assert proxy_data.get("ok") is True
     assert data.get("source") == "TWSE"
 
     print("TWSE: PASS")
@@ -58,8 +62,8 @@ def test_combined():
     }
 
     assert market_data["date"] == TEST_DATE
-    assert market_data["taifex"]["ok"] is True
-    assert market_data["twse"]["ok"] is True
+    assert market_data["taifex"]["data"]["ok"] is True
+    assert market_data["twse"]["data"]["ok"] is True
 
     print("Date   :", market_data["date"])
     print("TAIFEX : PASS")
@@ -73,11 +77,11 @@ def test_combined():
             {
                 "date": market_data["date"],
                 "taifex": {
-                    "ok": market_data["taifex"].get("ok"),
+                    "ok": market_data["taifex"]["data"].get("ok"),
                     "source": market_data["taifex"].get("source"),
                 },
                 "twse": {
-                    "ok": market_data["twse"].get("ok"),
+                    "ok": market_data["twse"]["data"].get("ok"),
                     "source": market_data["twse"].get("source"),
                 },
             },
