@@ -19,6 +19,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run Python test
+      - name: Run TAIFEX Chip Analysis
         run: |
-          python test_taifex.py
+          python taifex_chip_analysis.py
