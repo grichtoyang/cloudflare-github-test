@@ -1,0 +1,10 @@
+{
+  "ok": true,
+  "test": "Cloudflare Worker → TAIFEX Proxy → GitHub",
+  "timestamp": "2026-09-09T14:37:43.615Z",
+  "taifex": {
+    "http_status": 404,
+    "fetch_ok": false,
+    "body": "error code: 1042\n"
+  }
+}
