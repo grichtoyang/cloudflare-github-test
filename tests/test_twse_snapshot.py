@@ -1,4 +1,5 @@
 import json
+import os
 import tempfile
 import unittest
 from pathlib import Path
@@ -26,14 +27,19 @@ class TwseSnapshotTests(unittest.TestCase):
             },
         }
 
+    def run_in_temp(self, root, payload):
+        old = os.getcwd()
+        try:
+            os.chdir(root)
+            with patch.object(twse_snapshot, "fetch_json", return_value=(payload, 200, 1)):
+                return twse_snapshot.main()
+        finally:
+            os.chdir(old)
+
     def test_success_publishes_stable_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            with patch.object(twse_snapshot, "ROOT", root), patch.object(
-                twse_snapshot, "fetch_json", return_value=self.payload()
-            ):
-                status = twse_snapshot.main(["--date", "2026-09-11"])
-
+            status = self.run_in_temp(root, self.payload())
             self.assertEqual(status, 0)
             self.assertTrue((root / "data/twse/2026-09-11.json").exists())
             self.assertTrue((root / "data/snapshots/2026-09-11/twse-snapshot.json").exists())
@@ -46,11 +52,7 @@ class TwseSnapshotTests(unittest.TestCase):
             root = Path(tmp)
             bad = self.payload()
             bad["endpoints"]["MS"]["fetch_ok"] = False
-            with patch.object(twse_snapshot, "ROOT", root), patch.object(
-                twse_snapshot, "fetch_json", return_value=bad
-            ):
-                status = twse_snapshot.main(["--date", "2026-09-11"])
-
+            status = self.run_in_temp(root, bad)
             self.assertNotEqual(status, 0)
             self.assertFalse((root / "data/twse/2026-09-11.json").exists())
             self.assertFalse((root / "data/snapshots/2026-09-11/twse-snapshot.json").exists())
@@ -58,11 +60,8 @@ class TwseSnapshotTests(unittest.TestCase):
     def test_second_run_refuses_to_overwrite(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            with patch.object(twse_snapshot, "ROOT", root), patch.object(
-                twse_snapshot, "fetch_json", return_value=self.payload()
-            ):
-                self.assertEqual(twse_snapshot.main(["--date", "2026-09-11"]), 0)
-                self.assertEqual(twse_snapshot.main(["--date", "2026-09-11"]), 3)
+            self.assertEqual(self.run_in_temp(root, self.payload()), 0)
+            self.assertEqual(self.run_in_temp(root, self.payload()), 3)
 
 
 if __name__ == "__main__":
