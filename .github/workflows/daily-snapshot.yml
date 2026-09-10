@@ -43,6 +43,15 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Build unified pre-market manifest
+        id: unified
+        run: |
+          set +e
+          python scripts/build_premarket_manifest.py
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
       - name: Commit snapshots and manifests
         if: always()
         run: |
@@ -52,14 +61,15 @@ jobs:
           if git diff --cached --quiet; then
             echo "No snapshot changes to commit."
           else
-            git commit -m "Update daily TAIFEX and TWSE snapshots $(date -u +%F)"
+            git commit -m "Update daily pre-market snapshot $(date -u +%F)"
             git push
           fi
 
       - name: Enforce READY_FOR_ANALYSIS gate
-        if: steps.taifex.outputs.status != '0' || steps.twse.outputs.status != '0'
+        if: steps.taifex.outputs.status != '0' || steps.twse.outputs.status != '0' || steps.unified.outputs.status != '0'
         run: |
-          echo "Daily snapshot validation failed; READY_FOR_ANALYSIS=false."
+          echo "Daily pre-market package validation failed; READY_FOR_ANALYSIS=false."
           echo "TAIFEX status=${{ steps.taifex.outputs.status }}"
           echo "TWSE status=${{ steps.twse.outputs.status }}"
+          echo "Unified manifest status=${{ steps.unified.outputs.status }}"
           exit 1
