@@ -1,0 +1,27 @@
+{
+  "manifest_version": "1.0.0",
+  "analysis_date": "2026-09-10",
+  "fetch_started_at": "2026-09-10T15:43:44.211467Z",
+  "fetch_completed_at": "2026-09-10T15:43:47.626370Z",
+  "source": "TWSE",
+  "primary_source": "https://taiex-proxy.grichtoyang.workers.dev",
+  "required_endpoints": [
+    "IND",
+    "MS"
+  ],
+  "required_endpoint_count": 2,
+  "successful_endpoint_count": 0,
+  "endpoint_status": {},
+  "validation": {
+    "validation_errors": [
+      "HTTP Error 404: Not Found"
+    ],
+    "all_required_endpoints_ok": false
+  },
+  "attempt_artifacts": {
+    "snapshot": "data/snapshots/2026-09-10/attempt-twse-20260910T154347Z/twse-snapshot.json",
+    "manifest": "data/snapshots/2026-09-10/attempt-twse-20260910T154347Z/manifest.json",
+    "snapshot_sha256": "4288308aa0812b0085959276c79bf7a6054502f9c0047d0eb3c6be54f664020d"
+  },
+  "ready_for_analysis": false
+}
