@@ -22,7 +22,3 @@ jobs:
       - name: Run daily snapshot collector unit tests
         run: |
           python -m unittest discover -s tests -p 'test_*.py' -v
-
-      - name: Run legacy TAIFEX chip analysis
-        run: |
-          python taifex_chip_analysis.py
