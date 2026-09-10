@@ -19,6 +19,12 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Run TAIFEX Chip Analysis
+      - name: Run legacy TAIFEX chip analysis
         run: |
           python taifex_chip_analysis.py
+
+      - name: Run daily snapshot collector smoke test
+        env:
+          TAIFEX_PROXY_BASE_URL: https://taifex.grichtoyang.workers.dev
+        run: |
+          python scripts/daily_snapshot.py --date 2026-09-10
