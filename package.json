@@ -1,0 +1,12 @@
+{
+  "name": "market-data-github-bridge",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test"
+  },
+  "devDependencies": {
+    "wrangler": "^4.38.0"
+  }
+}
