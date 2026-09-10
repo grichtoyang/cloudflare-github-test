@@ -61,7 +61,12 @@ jobs:
           set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/taifex data/twse data/snapshots data/manifests data/premarket
+
+          # Collect whatever the snapshot stages actually produced. Some
+          # diagnostic/failed runs may not create every data subdirectory.
+          # Using -A avoids a fatal pathspec (exit 128) when one is absent.
+          git add -A
+          git status --short
 
           if git diff --cached --quiet; then
             echo "No snapshot changes to commit."
