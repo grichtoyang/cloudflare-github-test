@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Build the canonical immutable manifest for a daily pre-market package."""
+"""Build the canonical immutable daily pre-market manifest.
+
+Only a fully validated package is published to data/premarket/YYYY-MM-DD.json.
+Failed validation is retained under data/snapshots/YYYY-MM-DD/attempt-premarket-*/
+and never blocks a later retry.
+"""
 
 from __future__ import annotations
 
@@ -65,12 +70,21 @@ def main() -> int:
         return 2
 
     root = Path(args.output_root)
-    output = root / "manifests" / f"{args.date}.pre-market.json"
+    output = root / "premarket" / f"{args.date}.json"
     taifex_path = root / "manifests" / f"{args.date}.json"
     twse_path = root / "manifests" / f"{args.date}.twse.json"
 
+    # A published package is immutable. A failed attempt is never written to
+    # this canonical path, so failed runs can always be retried.
     if output.exists():
-        print(json.dumps({"date": args.date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "unified manifest already exists"}, ensure_ascii=False, indent=2))
+        try:
+            existing = read_json(output)
+        except Exception:
+            existing = {}
+        if existing.get("ready_for_analysis") is True and existing.get("published") is True:
+            print(json.dumps({"date": args.date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
+            return 3
+        print(json.dumps({"date": args.date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "invalid canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
         return 3
 
     started = now_utc()
@@ -81,7 +95,7 @@ def main() -> int:
     completed = now_utc()
 
     manifest = {
-        "manifest_version": "1.0.0",
+        "manifest_version": "1.1.0",
         "manifest_type": "pre-market",
         "analysis_date": args.date,
         "created_at": completed,
@@ -111,12 +125,17 @@ def main() -> int:
     }
 
     if not ready:
-        output.parent.mkdir(parents=True, exist_ok=True)
-        output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        attempt_dir = root / "snapshots" / args.date / f"attempt-premarket-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        attempt_manifest = attempt_dir / "manifest.json"
+        attempt_dir.mkdir(parents=True, exist_ok=True)
+        attempt_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        manifest["attempt_artifacts"] = {"manifest": str(attempt_manifest), "manifest_sha256": sha256(attempt_manifest)}
+        attempt_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(manifest, ensure_ascii=False, indent=2))
         return 1
 
     manifest["published"] = True
+    manifest["ready_for_analysis"] = True
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
