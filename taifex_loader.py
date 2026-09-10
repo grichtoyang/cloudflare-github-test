@@ -1,148 +1,117 @@
 import json
-from pathlib import Path
 from datetime import date
+from pathlib import Path
 
 
 class TAIFEXDataLoader:
-    """TAIFEX 每日 JSON 資料載入器"""
+    """Load the immutable, manifest-gated daily TAIFEX snapshot."""
 
-    def __init__(self, data_dir="data/taifex"):
-        self.data_dir = Path(data_dir)
+    def __init__(self, data_root="data"):
+        self.data_root = Path(data_root)
+        self.manifest_dir = self.data_root / "manifests"
+        self.snapshot_dir = self.data_root / "snapshots"
 
     def load(self, target_date=None):
-        """
-        載入指定日期的 TAIFEX JSON。
-
-        target_date:
-            None -> 使用今天日期
-            str  -> YYYY-MM-DD
-        """
-
         if target_date is None:
             target_date = date.today().isoformat()
 
-        file_path = self.data_dir / f"{target_date}.json"
+        manifest_path = self.manifest_dir / f"{target_date}.json"
+        if not manifest_path.exists():
+            raise FileNotFoundError(f"找不到 TAIFEX manifest: {manifest_path}")
 
-        if not file_path.exists():
-            raise FileNotFoundError(
-                f"找不到 TAIFEX 資料檔案: {file_path}"
-            )
+        with manifest_path.open("r", encoding="utf-8") as f:
+            manifest = json.load(f)
 
-        with file_path.open("r", encoding="utf-8") as f:
-            raw = json.load(f)
+        self._validate_manifest(manifest, target_date, manifest_path)
 
-        self._validate(raw, target_date)
+        snapshot_path = Path(
+            manifest.get("published_snapshot")
+            or self.snapshot_dir / target_date / "snapshot.json"
+        )
+        if not snapshot_path.is_absolute():
+            snapshot_path = Path(snapshot_path)
 
-        # Cloudflare Proxy → GitHub JSON
-        proxy_data = raw.get("data", {})
+        if not snapshot_path.exists():
+            raise FileNotFoundError(f"找不到已發布 TAIFEX snapshot: {snapshot_path}")
 
-        # TAIFEX modules
-        taifex_data = proxy_data.get("data", {})
+        with snapshot_path.open("r", encoding="utf-8") as f:
+            snapshot = json.load(f)
+
+        self._validate_snapshot(snapshot, target_date, snapshot_path)
+        endpoint_data = snapshot["data"]
 
         return {
             "date": target_date,
-            "source": raw.get("source"),
-            "proxy": raw.get("proxy"),
-            "file": str(file_path),
-
-            "futures_price": self._extract(
-                taifex_data,
-                "futures_price"
-            ),
-
-            "futures_institutional": self._extract(
-                taifex_data,
-                "futures_institutional"
-            ),
-
-            "futures_institutional_oi": self._extract(
-                taifex_data,
-                "futures_institutional_oi"
-            ),
+            "source": snapshot.get("source"),
+            "proxy": snapshot.get("proxy"),
+            "file": str(snapshot_path),
+            "manifest": str(manifest_path),
+            "manifest_version": manifest.get("manifest_version"),
+            "ready_for_analysis": True,
+            "endpoints": endpoint_data,
+            # Compatibility aliases for existing analysis code.
+            "futures_price": self._endpoint_rows(endpoint_data, "futures-price"),
+            "futures_institutional": self._endpoint_rows(endpoint_data, "futures-institutional"),
+            "futures_institutional_oi": self._endpoint_rows(endpoint_data, "futures-institutional-oi"),
         }
 
     @staticmethod
-    def _extract(data, key):
-        """取得 TAIFEX module 的 data 陣列"""
-
-        module = data.get(key, {})
-
-        if not isinstance(module, dict):
-            raise ValueError(
-                f"TAIFEX module 格式錯誤: {key}"
-            )
-
-        rows = module.get("data", [])
-
+    def _endpoint_rows(data, endpoint):
+        payload = data.get(endpoint)
+        if not isinstance(payload, dict):
+            raise ValueError(f"TAIFEX endpoint 缺失或格式錯誤: {endpoint}")
+        rows = payload.get("data")
         if not isinstance(rows, list):
-            raise ValueError(
-                f"TAIFEX module data 必須是 list: {key}"
-            )
-
+            raise ValueError(f"TAIFEX endpoint data 必須是 list: {endpoint}")
         return rows
 
     @staticmethod
-    def _validate(raw, target_date):
-        """基本資料完整性驗證"""
-
-        if not isinstance(raw, dict):
+    def _validate_manifest(manifest, target_date, manifest_path):
+        if not isinstance(manifest, dict):
+            raise ValueError("TAIFEX manifest 根節點必須是 object")
+        if manifest.get("analysis_date") != target_date:
             raise ValueError(
-                "TAIFEX JSON 根節點必須是 object"
+                f"manifest 日期不一致: JSON={manifest.get('analysis_date')} 要求={target_date}"
             )
+        if manifest.get("ready_for_analysis") is not True:
+            raise RuntimeError(
+                f"READY_FOR_ANALYSIS=false，禁止分析: {manifest_path}"
+            )
+        if manifest.get("published") is not True:
+            raise RuntimeError(f"manifest 尚未標記 published: {manifest_path}")
+        if manifest.get("validation", {}).get("validation_errors"):
+            raise RuntimeError(f"manifest 存在 validation_errors: {manifest_path}")
 
-        if raw.get("date") != target_date:
+    @staticmethod
+    def _validate_snapshot(snapshot, target_date, snapshot_path):
+        if not isinstance(snapshot, dict):
+            raise ValueError("TAIFEX snapshot 根節點必須是 object")
+        if snapshot.get("date") != target_date:
             raise ValueError(
-                f"日期不一致: "
-                f"JSON={raw.get('date')} "
-                f"要求={target_date}"
+                f"snapshot 日期不一致: JSON={snapshot.get('date')} 要求={target_date}"
             )
-
-        if "data" not in raw:
-            raise ValueError(
-                "TAIFEX JSON 缺少 data"
-            )
+        if snapshot.get("validation", {}).get("ready_for_analysis") is not True:
+            raise RuntimeError(f"snapshot READY_FOR_ANALYSIS=false: {snapshot_path}")
+        data = snapshot.get("data")
+        if not isinstance(data, dict):
+            raise ValueError("TAIFEX snapshot 缺少 data object")
 
 
 def load_taifex(target_date=None):
-    """簡易介面"""
-
-    loader = TAIFEXDataLoader()
-    return loader.load(target_date)
+    return TAIFEXDataLoader().load(target_date)
 
 
 if __name__ == "__main__":
     data = load_taifex()
 
     print("=" * 60)
-    print("TAIFEX Data Loader V1.0")
+    print("TAIFEX Immutable Snapshot Loader V1.1")
     print("=" * 60)
-
     print(f"Date   : {data['date']}")
     print(f"Source : {data['source']}")
     print(f"Proxy  : {data['proxy']}")
     print(f"File   : {data['file']}")
-
-    print()
-    print("-" * 60)
-    print("TAIFEX Data Modules")
-    print("-" * 60)
-
-    print(
-        f"futures_price           : "
-        f"{len(data['futures_price'])} 筆"
-    )
-
-    print(
-        f"futures_institutional   : "
-        f"{len(data['futures_institutional'])} 筆"
-    )
-
-    print(
-        f"futures_institutional_oi: "
-        f"{len(data['futures_institutional_oi'])} 筆"
-    )
-
-    print()
-    print("=" * 60)
-    print("TAIFEX Data Loader 成功")
+    print(f"Manifest: {data['manifest']}")
+    print(f"Ready  : {data['ready_for_analysis']}")
+    print(f"Endpoints: {len(data['endpoints'])}")
     print("=" * 60)
