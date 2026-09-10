@@ -75,14 +75,14 @@ def write_json(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
-def main() -> int:
+def main(argv=None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", default=date.today().isoformat())
     parser.add_argument("--base-url", default=os.getenv("TWSE_PROXY_BASE_URL", DEFAULT_BASE))
     parser.add_argument("--output-root", default="data")
     parser.add_argument("--retries", type=int, default=3)
     parser.add_argument("--timeout", type=int, default=30)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         date.fromisoformat(args.date)
