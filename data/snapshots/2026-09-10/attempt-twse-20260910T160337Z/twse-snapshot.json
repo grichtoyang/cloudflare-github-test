@@ -1,0 +1,22 @@
+{
+  "date": "2026-09-10",
+  "timestamp": "2026-09-10T16:03:37.599704Z",
+  "source": "TWSE",
+  "proxy": "https://taiex-proxy.grichtoyang.workers.dev",
+  "collector": "twse_snapshot.py",
+  "collector_version": "1.0.0",
+  "data": {
+    "ok": false,
+    "source": "TWSE",
+    "date": "2026-09-10",
+    "error": "HTTP Error 404: Not Found"
+  },
+  "validation": {
+    "required_endpoint_count": 2,
+    "successful_endpoint_count": 0,
+    "errors": [
+      "HTTP Error 404: Not Found"
+    ],
+    "ready_for_analysis": false
+  }
+}
