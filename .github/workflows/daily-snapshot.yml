@@ -15,6 +15,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: main
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -55,15 +58,42 @@ jobs:
       - name: Commit snapshots and manifests
         if: always()
         run: |
+          set -e
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/taifex data/twse data/snapshots data/manifests data/premarket
+
           if git diff --cached --quiet; then
             echo "No snapshot changes to commit."
-          else
-            git commit -m "Update daily pre-market snapshot $(date -u +%F)"
-            git push
+            exit 0
           fi
+
+          git commit -m "Update daily pre-market snapshot $(date -u +%F)"
+
+          # The repository may receive another bot/user commit while the
+          # snapshot is being built. Rebase onto the current main before push.
+          for attempt in 1 2 3; do
+            echo "Push attempt ${attempt}/3"
+            git fetch origin main
+            git rebase origin/main || {
+              echo "Rebase failed; aborting rebase."
+              git rebase --abort || true
+              exit 1
+            }
+
+            if git push origin HEAD:main; then
+              echo "Snapshot commit pushed successfully."
+              exit 0
+            fi
+
+            if [ "$attempt" -lt 3 ]; then
+              echo "Push rejected; retrying after refreshing origin/main."
+              sleep 2
+            fi
+          done
+
+          echo "Failed to push snapshot commit after 3 attempts."
+          exit 1
 
       - name: Enforce READY_FOR_ANALYSIS gate
         if: steps.taifex.outputs.status != '0' || steps.twse.outputs.status != '0' || steps.unified.outputs.status != '0'
