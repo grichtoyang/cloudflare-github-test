@@ -1,15 +1,26 @@
 #!/usr/bin/env python3
-"""Build the daily TAIFEX snapshot used by the pre-market analysis pipeline.
+"""Build an immutable daily TAIFEX snapshot for the pre-market pipeline.
 
-Primary source: the production TAIFEX Cloudflare Proxy. The proxy itself owns
-TAIFEX/OpenAPI fallback logic, so this collector does not duplicate upstream
-parsers. The collector is intentionally dependency-free and writes a stable
-snapshot plus a machine-readable manifest.
+The Cloudflare Proxy owns upstream TAIFEX/OpenAPI fallback logic. This collector
+owns collection retries, validation, immutable publication, and the
+READY_FOR_ANALYSIS gate.
+
+Publication model:
+- Every execution writes an immutable attempt under
+  data/snapshots/YYYY-MM-DD/attempt-<UTC timestamp>/.
+- A successful first publication also creates the stable compatibility files
+  data/taifex/YYYY-MM-DD.json, data/snapshots/YYYY-MM-DD/snapshot.json and
+  data/manifests/YYYY-MM-DD.json.
+- Stable daily files are never overwritten. A second successful publication
+  for the same date is rejected.
+- Failed attempts remain available for diagnosis and do not block a later
+  retry, because no stable READY_FOR_ANALYSIS artifact is published.
 """
 
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import sys
@@ -72,10 +83,13 @@ def now_utc() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
 
+def run_id() -> str:
+    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+
+
 def endpoint_url(base: str, endpoint: str, target_date: str) -> str:
-    separator = "&" if "?" in endpoint else "?"
     if endpoint in DATE_ENDPOINTS:
-        return f"{base.rstrip('/')}/{endpoint}{separator}date={target_date}"
+        return f"{base.rstrip('/')}/{endpoint}?date={target_date}"
     return f"{base.rstrip('/')}/{endpoint}"
 
 
@@ -115,32 +129,70 @@ def validate_response(name: str, payload: dict, target_date: str) -> list[str]:
     return errors
 
 
+def write_json(path: Path, payload: dict) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+
+def sha256_file(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def stable_paths(root: Path, target_date: str) -> tuple[Path, Path, Path]:
+    return (
+        root / "taifex" / f"{target_date}.json",
+        root / "snapshots" / target_date / "snapshot.json",
+        root / "manifests" / f"{target_date}.json",
+    )
+
+
 def main() -> int:
     args = parse_args()
     if not valid_date(args.date):
         print(f"Invalid date: {args.date}", file=sys.stderr)
         return 2
+    if args.retries < 1:
+        print("--retries must be >= 1", file=sys.stderr)
+        return 2
 
     root = Path(args.output_root)
-    taifex_dir = root / "taifex"
-    snapshot_dir = root / "snapshots"
-    manifest_dir = root / "manifests"
-    for directory in (taifex_dir, snapshot_dir, manifest_dir):
-        directory.mkdir(parents=True, exist_ok=True)
+    target_snapshot_dir = root / "snapshots" / args.date
+    target_attempt_dir = target_snapshot_dir / f"attempt-{run_id()}"
+    stable_taifex, stable_snapshot, stable_manifest = stable_paths(root, args.date)
+
+    # The stable publication is immutable. Existing legacy TAIFEX files are
+    # intentionally treated as a publication collision rather than overwritten.
+    existing_stable = [p for p in (stable_taifex, stable_snapshot, stable_manifest) if p.exists()]
+    if existing_stable:
+        print(
+            json.dumps(
+                {
+                    "date": args.date,
+                    "ready_for_analysis": False,
+                    "immutable_publication": "blocked",
+                    "reason": "stable artifact already exists",
+                    "existing": [str(p) for p in existing_stable],
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 3
 
     started = now_utc()
     results: dict[str, object] = {}
     endpoint_status: dict[str, object] = {}
     validation_errors: list[str] = []
 
-    # Health is checked separately so a healthy proxy cannot be mistaken for
-    # complete market data.
     health_url = f"{args.base_url.rstrip('/')}/health"
     try:
         health, status, attempts = fetch_json(health_url, args.retries, args.timeout)
-        endpoint_status["health"] = {"ok": health.get("ok") is True, "status": status, "attempts": attempts}
+        health_ok = health.get("ok") is True
+        endpoint_status["health"] = {"ok": health_ok, "status": status, "attempts": attempts, "url": health_url}
+        if not health_ok:
+            validation_errors.append("health: ok != true")
     except RuntimeError as exc:
-        endpoint_status["health"] = {"ok": False, "error": str(exc)}
+        endpoint_status["health"] = {"ok": False, "url": health_url, "error": str(exc)}
         validation_errors.append(f"health: {exc}")
 
     for name in REQUIRED_ENDPOINTS:
@@ -157,21 +209,27 @@ def main() -> int:
                 "url": url,
                 "source": payload.get("source"),
                 "dataset": payload.get("dataset"),
+                "response_date": payload.get("date"),
             }
         except RuntimeError as exc:
             endpoint_status[name] = {"ok": False, "url": url, "error": str(exc)}
             validation_errors.append(f"{name}: {exc}")
 
     completed = now_utc()
-    all_ok = not validation_errors and len(results) == len(REQUIRED_ENDPOINTS)
+    all_ok = (
+        endpoint_status.get("health", {}).get("ok", False)
+        and not validation_errors
+        and len(results) == len(REQUIRED_ENDPOINTS)
+    )
 
     snapshot = {
         "date": args.date,
         "timestamp": completed,
         "source": "TAIFEX",
-        "proxy": "taifex.grichtoyang.workers.dev",
+        "proxy": args.base_url.rstrip("/"),
         "collector": "daily_snapshot.py",
-        "collector_version": "1.0.0",
+        "collector_version": "1.1.0",
+        "run_id": target_attempt_dir.name,
         "data": results,
         "validation": {
             "health": endpoint_status.get("health", {}).get("ok", False),
@@ -182,34 +240,99 @@ def main() -> int:
         },
     }
 
+    attempt_snapshot = target_attempt_dir / "snapshot.json"
+    attempt_manifest = target_attempt_dir / "manifest.json"
+    write_json(attempt_snapshot, snapshot)
+
+    snapshot_hash = sha256_file(attempt_snapshot)
     manifest = {
+        "manifest_version": "1.1.0",
         "analysis_date": args.date,
+        "run_id": target_attempt_dir.name,
         "fetch_started_at": started,
         "fetch_completed_at": completed,
         "source": "TAIFEX",
-        "primary_source": args.base_url,
+        "primary_source": args.base_url.rstrip("/"),
+        "required_endpoint_count": len(REQUIRED_ENDPOINTS),
+        "successful_endpoint_count": len(results),
         "required_endpoints": REQUIRED_ENDPOINTS,
         "endpoint_status": endpoint_status,
+        "validation": {
+            "health_ok": endpoint_status.get("health", {}).get("ok", False),
+            "all_required_endpoints_ok": len(results) == len(REQUIRED_ENDPOINTS) and not validation_errors,
+            "validation_errors": validation_errors,
+        },
+        "freshness": {
+            "collector_completed_at": completed,
+            "response_dates": {
+                name: status.get("response_date")
+                for name, status in endpoint_status.items()
+                if name != "health" and isinstance(status, dict)
+            },
+        },
         "fallback": {
             "handled_by": "TAIFEX Cloudflare Proxy",
             "status": "delegated_to_proxy",
         },
-        "validation_errors": validation_errors,
+        "attempt_artifacts": {
+            "snapshot": str(attempt_snapshot),
+            "manifest": str(attempt_manifest),
+            "snapshot_sha256": snapshot_hash,
+        },
         "ready_for_analysis": all_ok,
     }
+    write_json(attempt_manifest, manifest)
 
-    (taifex_dir / f"{args.date}.json").write_text(json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (snapshot_dir / f"{args.date}.json").write_text(json.dumps(snapshot, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (manifest_dir / f"{args.date}.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    if not all_ok:
+        print(
+            json.dumps(
+                {
+                    "date": args.date,
+                    "ready_for_analysis": False,
+                    "attempt": str(target_attempt_dir),
+                    "successful_endpoint_count": len(results),
+                    "required_endpoint_count": len(REQUIRED_ENDPOINTS),
+                    "errors": validation_errors,
+                },
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        return 1
 
-    print(json.dumps({
-        "date": args.date,
-        "ready_for_analysis": all_ok,
-        "successful_endpoint_count": len(results),
-        "required_endpoint_count": len(REQUIRED_ENDPOINTS),
-        "errors": validation_errors,
-    }, ensure_ascii=False, indent=2))
-    return 0 if all_ok else 1
+    # Publish only once, and only after the complete snapshot has passed the gate.
+    # Re-check immediately before publication to avoid accidental overwrites.
+    collisions = [p for p in (stable_taifex, stable_snapshot, stable_manifest) if p.exists()]
+    if collisions:
+        print(f"Immutable publication collision: {[str(p) for p in collisions]}", file=sys.stderr)
+        return 3
+
+    write_json(stable_taifex, snapshot)
+    write_json(stable_snapshot, snapshot)
+
+    stable_manifest_payload = dict(manifest)
+    stable_manifest_payload["published"] = True
+    stable_manifest_payload["published_snapshot"] = str(stable_snapshot)
+    stable_manifest_payload["ready_for_analysis"] = True
+    write_json(stable_manifest, stable_manifest_payload)
+
+    print(
+        json.dumps(
+            {
+                "date": args.date,
+                "ready_for_analysis": True,
+                "published": True,
+                "snapshot": str(stable_snapshot),
+                "manifest": str(stable_manifest),
+                "snapshot_sha256": snapshot_hash,
+                "successful_endpoint_count": len(results),
+                "required_endpoint_count": len(REQUIRED_ENDPOINTS),
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    return 0
 
 
 if __name__ == "__main__":
