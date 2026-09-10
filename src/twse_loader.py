@@ -9,67 +9,48 @@ GITHUB_RAW_BASE = (
 
 
 def load_json(url: str) -> dict:
-    """從 GitHub Raw URL 讀取 JSON。"""
-
+    """Load JSON from a URL."""
     with urlopen(url, timeout=15) as response:
-        data = response.read().decode("utf-8")
-
-    return json.loads(data)
+        return json.loads(response.read().decode("utf-8"))
 
 
 def load_twse(date: str) -> dict:
-    """
-    讀取指定日期的 TWSE 原始 JSON。
-    """
-
+    """Load and validate the immutable daily TWSE snapshot."""
     url = f"{GITHUB_RAW_BASE}/twse/{date}.json"
-
     wrapper = load_json(url)
 
-    # ----------------------------------------
-    # 第一層：GitHub 儲存的資料封裝
-    # ----------------------------------------
     if not isinstance(wrapper, dict):
-        raise ValueError("TWSE data is not a JSON object")
-
+        raise ValueError("TWSE snapshot is not a JSON object")
+    if wrapper.get("ok") is not True:
+        raise ValueError("TWSE snapshot ok != true")
     if wrapper.get("source") != "TWSE":
         raise ValueError("Invalid TWSE source")
+    if wrapper.get("date") != date:
+        raise ValueError(f"TWSE snapshot date={wrapper.get('date')}, expected={date}")
 
-    # ----------------------------------------
-    # 第二層：TWSE Proxy 回傳結果
-    # ----------------------------------------
-    proxy_data = wrapper.get("data")
+    endpoints = wrapper.get("endpoints")
+    if not isinstance(endpoints, dict):
+        raise ValueError("TWSE endpoints are missing")
+    for name in ("IND", "MS"):
+        endpoint = endpoints.get(name)
+        if not isinstance(endpoint, dict):
+            raise ValueError(f"TWSE endpoint {name} is missing")
+        if endpoint.get("status") != 200 or endpoint.get("fetch_ok") is not True:
+            raise ValueError(f"TWSE endpoint {name} is not OK")
 
-    if not isinstance(proxy_data, dict):
-        raise ValueError("TWSE proxy data is missing")
-
-    if proxy_data.get("ok") is not True:
-        raise ValueError("TWSE proxy status is not OK")
+    data = wrapper.get("data")
+    if not isinstance(data, dict):
+        raise ValueError("TWSE data is missing")
+    for key in ("taiex", "market_statistics", "advance_decline"):
+        if key not in data:
+            raise ValueError(f"TWSE data.{key} is missing")
 
     return wrapper
 
 
 if __name__ == "__main__":
-
     TEST_DATE = "2026-09-09"
-
-    print("=" * 60)
-    print("TWSE Loader V1.1")
-    print("=" * 60)
-
     data = load_twse(TEST_DATE)
-
-    proxy_data = data["data"]
-
-    print(f"Date: {TEST_DATE}")
-    print("Source: TWSE")
-    print("Proxy status: OK")
-
-    # 顯示 TWSE tables 數量
-    tables = proxy_data.get("data", {}).get("tables", [])
-
-    if isinstance(tables, list):
-        print(f"TWSE tables: {len(tables)}")
-
-    print()
-    print("TWSE Loader: PASS")
+    print("TWSE Loader V1.2: PASS")
+    print(f"Date: {data['date']}")
+    print(f"TAIEX close: {data['data']['taiex']['close']}")
