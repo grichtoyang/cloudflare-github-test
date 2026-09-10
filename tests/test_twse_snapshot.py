@@ -9,7 +9,9 @@ from scripts import twse_snapshot
 
 
 class TwseSnapshotTests(unittest.TestCase):
-    def payload(self, date="2026-09-11", ok=True):
+    TARGET_DATE = "2026-09-11"
+
+    def payload(self, date=TARGET_DATE, ok=True):
         return {
             "ok": ok,
             "source": "TWSE",
@@ -32,7 +34,7 @@ class TwseSnapshotTests(unittest.TestCase):
         try:
             os.chdir(root)
             with patch.object(twse_snapshot, "fetch_json", return_value=(payload, 200, 1)):
-                return twse_snapshot.main()
+                return twse_snapshot.main(["--date", self.TARGET_DATE])
         finally:
             os.chdir(old)
 
