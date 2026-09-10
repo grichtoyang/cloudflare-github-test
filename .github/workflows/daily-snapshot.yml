@@ -43,7 +43,7 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Build unified pre-market manifest
+      - name: Build canonical pre-market manifest
         id: unified
         run: |
           set +e
@@ -57,7 +57,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add data/taifex data/twse data/snapshots data/manifests
+          git add data/taifex data/twse data/snapshots data/manifests data/premarket
           if git diff --cached --quiet; then
             echo "No snapshot changes to commit."
           else
