@@ -13,35 +13,23 @@ class PreMarketManifestDateTests(unittest.TestCase):
         manifest_path.parent.mkdir(parents=True, exist_ok=True)
         snapshot_path = root / "data" / "snapshots" / snapshot_name
         snapshot_path.parent.mkdir(parents=True, exist_ok=True)
-        snapshot_path.write_text("{}\n", encoding="utf-8")
+        source = manifest["source"]
+        snapshot = {
+            "source": source,
+            "date": "2026-09-10",
+            "validation": {"ready_for_analysis": True},
+            "data": {"sample": {"ok": True}},
+        }
+        snapshot_path.write_text(json.dumps(snapshot) + "\n", encoding="utf-8")
         manifest["published_snapshot"] = str(snapshot_path)
+        manifest["snapshot_sha256"] = build_premarket_manifest.sha256(snapshot_path)
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
     def test_analysis_date_is_separate_from_t0(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_source(
-                root,
-                "2026-09-10.json",
-                {
-                    "analysis_date": "2026-09-11",
-                    "source": "TAIFEX",
-                    "ready_for_analysis": True,
-                    "published": True,
-                },
-                "2026-09-10/taifex.json",
-            )
-            self._write_source(
-                root,
-                "2026-09-10.twse.json",
-                {
-                    "analysis_date": "2026-09-10",
-                    "source": "TWSE",
-                    "ready_for_analysis": True,
-                    "published": True,
-                },
-                "2026-09-10/twse.json",
-            )
+            self._write_source(root, "2026-09-10.json", {"analysis_date": "2026-09-11", "source": "TAIFEX", "ready_for_analysis": True, "published": True}, "2026-09-10/taifex.json")
+            self._write_source(root, "2026-09-10.twse.json", {"analysis_date": "2026-09-10", "source": "TWSE", "ready_for_analysis": True, "published": True}, "2026-09-10/twse.json")
 
             with patch("sys.argv", ["build_premarket_manifest.py", "--date", "2026-09-10", "--analysis-date", "2026-09-11", "--output-root", str(root / "data")]):
                 rc = build_premarket_manifest.main()
@@ -58,28 +46,8 @@ class PreMarketManifestDateTests(unittest.TestCase):
     def test_taifex_must_match_analysis_date(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_source(
-                root,
-                "2026-09-10.json",
-                {
-                    "analysis_date": "2026-09-10",
-                    "source": "TAIFEX",
-                    "ready_for_analysis": True,
-                    "published": True,
-                },
-                "2026-09-10/taifex.json",
-            )
-            self._write_source(
-                root,
-                "2026-09-10.twse.json",
-                {
-                    "analysis_date": "2026-09-10",
-                    "source": "TWSE",
-                    "ready_for_analysis": True,
-                    "published": True,
-                },
-                "2026-09-10/twse.json",
-            )
+            self._write_source(root, "2026-09-10.json", {"analysis_date": "2026-09-10", "source": "TAIFEX", "ready_for_analysis": True, "published": True}, "2026-09-10/taifex.json")
+            self._write_source(root, "2026-09-10.twse.json", {"analysis_date": "2026-09-10", "source": "TWSE", "ready_for_analysis": True, "published": True}, "2026-09-10/twse.json")
 
             with patch("sys.argv", ["build_premarket_manifest.py", "--date", "2026-09-10", "--analysis-date", "2026-09-11", "--output-root", str(root / "data")]):
                 rc = build_premarket_manifest.main()
