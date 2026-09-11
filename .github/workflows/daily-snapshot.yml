@@ -2,6 +2,9 @@ name: Daily Pre-Market Snapshot
 
 on:
   workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/daily-snapshot.yml'
   schedule:
     # 08:00 Asia/Taipei = 00:00 UTC.
     - cron: "0 0 * * 1-5"
