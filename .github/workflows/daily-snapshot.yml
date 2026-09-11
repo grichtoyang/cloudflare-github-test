@@ -56,8 +56,6 @@ jobs:
 
       - name: Build canonical pre-market manifest
         id: unified
-        env:
-          T0_DATE: ${{ steps.t0.outputs.date }}
         run: |
           set +e
           python scripts/build_premarket_manifest.py --date "${{ steps.t0.outputs.date }}"
@@ -111,7 +109,7 @@ jobs:
           exit 1
 
       - name: Enforce READY_FOR_ANALYSIS gate
-        if: steps.t0.outcome != 'success' || steps.taifex.outputs.status != '0' || steps.twse.outputs.status != '0' || steps.unified.outputs.status != '0'
+        if: always() && (steps.t0.outcome != 'success' || steps.taifex.outputs.status != '0' || steps.twse.outputs.status != '0' || steps.unified.outputs.status != '0')
         run: |
           echo "Daily pre-market package validation failed; READY_FOR_ANALYSIS=false."
           echo "T0=${{ steps.t0.outputs.date }}"
