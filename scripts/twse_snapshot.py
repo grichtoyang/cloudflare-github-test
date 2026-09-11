@@ -14,7 +14,8 @@ from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-DEFAULT_BASE = "https://taiex-proxy.grichtoyang.workers.dev"
+DEFAULT_BASE = "https://twse-proxy.grichtoyang.workers.dev"
+LEGACY_BASE = "https://taiex-proxy.grichtoyang.workers.dev"
 REQUIRED_ENDPOINTS = ("IND", "MS")
 REQUIRED_DATA = ("taiex", "market_statistics", "advance_decline")
 
@@ -100,6 +101,10 @@ def main(argv=None) -> int:
 
     started = now_utc()
     url = args.base_url.rstrip("/")
+    if url == LEGACY_BASE:
+        print(json.dumps({"date": args.date, "ready_for_analysis": False, "error": f"legacy TWSE proxy URL is forbidden: {LEGACY_BASE}; use {DEFAULT_BASE}"}, ensure_ascii=False, indent=2), file=sys.stderr)
+        return 2
+
     try:
         payload, status, attempts = fetch_json(url, args.retries, args.timeout)
         errors = validate(payload, args.date)
