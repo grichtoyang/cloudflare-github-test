@@ -10,6 +10,8 @@ from scripts import twse_snapshot
 
 class TwseSnapshotTests(unittest.TestCase):
     TARGET_DATE = "2026-09-11"
+    CANONICAL_PROXY = "https://twse-proxy.grichtoyang.workers.dev"
+    LEGACY_PROXY = "https://taiex-proxy.grichtoyang.workers.dev"
 
     def payload(self, date=TARGET_DATE, ok=True):
         return {
@@ -37,6 +39,24 @@ class TwseSnapshotTests(unittest.TestCase):
                 return twse_snapshot.main(["--date", self.TARGET_DATE])
         finally:
             os.chdir(old)
+
+    def test_canonical_proxy_is_twse_proxy(self):
+        self.assertEqual(twse_snapshot.DEFAULT_BASE, self.CANONICAL_PROXY)
+        self.assertNotEqual(twse_snapshot.DEFAULT_BASE, self.LEGACY_PROXY)
+
+    def test_legacy_proxy_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            old = os.getcwd()
+            try:
+                os.chdir(root)
+                status = twse_snapshot.main(
+                    ["--date", self.TARGET_DATE, "--base-url", self.LEGACY_PROXY]
+                )
+            finally:
+                os.chdir(old)
+            self.assertEqual(status, 2)
+            self.assertFalse((root / "data/twse/2026-09-11.json").exists())
 
     def test_success_publishes_stable_artifacts(self):
         with tempfile.TemporaryDirectory() as tmp:
