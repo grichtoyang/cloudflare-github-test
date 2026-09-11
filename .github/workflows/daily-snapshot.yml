@@ -68,7 +68,9 @@ jobs:
         id: unified
         run: |
           set +e
-          python scripts/build_premarket_manifest.py --date "${{ steps.t0.outputs.date }}"
+          python scripts/build_premarket_manifest.py \
+            --date "${{ steps.t0.outputs.date }}" \
+            --analysis-date "${{ steps.analysis.outputs.date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
