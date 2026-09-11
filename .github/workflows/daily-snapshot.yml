@@ -91,21 +91,19 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Generate automated AI pre-market report
-        id: report
+      - name: Build ChatGPT-readable AI data package
+        id: aiinput
         if: steps.unified.outputs.status == '0' || steps.unified.outputs.status == '3'
-        env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-5.6-luna' }}
         run: |
           set +e
-          python scripts/generate_premarket_report.py \
-            --analysis-date "${{ steps.analysis.outputs.date }}"
+          python scripts/build_premarket_ai_inputs.py \
+            --analysis-date "${{ steps.analysis.outputs.date }}" \
+            --t0-date "${{ steps.t0.outputs.date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Commit snapshots, manifest, and report
+      - name: Commit snapshots, manifests, and ChatGPT data package
         if: always()
         run: |
           set -e
@@ -116,11 +114,11 @@ jobs:
           git status --short
 
           if git diff --cached --quiet; then
-            echo "No snapshot/report changes to commit."
+            echo "No snapshot/manifest/AI-input changes to commit."
             exit 0
           fi
 
-          git commit -m "Update daily pre-market snapshot $(date -u +%F)"
+          git commit -m "Update daily pre-market data $(date -u +%F)"
 
           for attempt in 1 2 3; do
             echo "Push attempt ${attempt}/3"
@@ -132,7 +130,7 @@ jobs:
             }
 
             if git push origin HEAD:main; then
-              echo "Snapshot/report commit pushed successfully."
+              echo "Daily pre-market data commit pushed successfully."
               exit 0
             fi
 
@@ -142,17 +140,17 @@ jobs:
             fi
           done
 
-          echo "Failed to push snapshot/report commit after 3 attempts."
+          echo "Failed to push daily pre-market data commit after 3 attempts."
           exit 1
 
-      - name: Enforce READY_FOR_ANALYSIS gate
-        if: always() && (steps.t0.outcome != 'success' || (steps.unified.outputs.status != '0' && steps.unified.outputs.status != '3') || (steps.report.outputs.status != '0' && steps.report.outputs.status != '3'))
+      - name: Enforce READY_FOR_ANALYSIS data gate
+        if: always() && (steps.t0.outcome != 'success' || (steps.unified.outputs.status != '0' && steps.unified.outputs.status != '3') || (steps.aiinput.outputs.status != '0' && steps.aiinput.outputs.status != '3'))
         run: |
-          echo "Daily pre-market package/report validation failed; READY_FOR_ANALYSIS=false."
+          echo "Daily pre-market data package validation failed; READY_FOR_ANALYSIS=false."
           echo "Analysis Date=${{ steps.analysis.outputs.date }}"
           echo "T0=${{ steps.t0.outputs.date }}"
           echo "TAIFEX status=${{ steps.taifex.outputs.status }}"
           echo "TWSE status=${{ steps.twse.outputs.status }}"
           echo "Unified manifest status=${{ steps.unified.outputs.status }}"
-          echo "Report status=${{ steps.report.outputs.status }}"
+          echo "ChatGPT AI-input package status=${{ steps.aiinput.outputs.status }}"
           exit 1
