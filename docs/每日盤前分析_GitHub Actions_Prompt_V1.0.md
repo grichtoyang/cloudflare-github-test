@@ -472,10 +472,12 @@ Build ChatGPT-readable AI-input
       ↓
 Validate AI-input Integrity
       ↓
-Commit / Push GitHub
-      ↓
 READY_FOR_ANALYSIS
+      ↓
+Commit / Push GitHub
 ```
+
+**READY_FOR_ANALYSIS 必須先於 Commit / Push。任何未通過 Ready Gate 的 artifact 不得被 commit / push。**
 
 GitHub Actions 完成後，不產生 OpenAI API 報告。
 
