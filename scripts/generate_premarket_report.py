@@ -86,6 +86,24 @@ def call_openai(api_key: str, model: str, input_text: str, timeout: int) -> tupl
     return extract_text(payload), payload
 
 
+def _existing_report_is_valid(report_path: Path, audit_path: Path, analysis_date: str) -> bool:
+    """Return True only when both idempotent report artifacts are structurally valid."""
+    try:
+        if not report_path.is_file() or not audit_path.is_file():
+            return False
+        report_text = report_path.read_text(encoding="utf-8").strip()
+        audit = read_json(audit_path)
+        if not report_text.startswith(f"# 每日盤前分析 — {analysis_date}"):
+            return False
+        if audit.get("analysis_date") != analysis_date:
+            return False
+        if not audit.get("response_id") or not audit.get("model"):
+            return False
+        return True
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError):
+        return False
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--analysis-date", default=date.today().isoformat())
@@ -99,7 +117,11 @@ def main() -> int:
     report_dir = Path(args.report_root)
     report_path = report_dir / f"premarket-{args.analysis_date}.md"
     audit_path = report_dir / f"premarket-{args.analysis_date}.meta.json"
-    if report_path.exists() and audit_path.exists() and not args.force:
+
+    # Idempotency is accepted only after validating the existing artifacts.
+    # A corrupt/partial pair must fall through to canonical-data validation and
+    # regeneration rather than being treated as a successful prior run.
+    if not args.force and _existing_report_is_valid(report_path, audit_path, args.analysis_date):
         print(json.dumps({"ok": True, "published": True, "status": "already_exists", "report": str(report_path), "audit": str(audit_path)}, ensure_ascii=False, indent=2))
         return 3
 
