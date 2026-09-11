@@ -6,12 +6,15 @@ from __future__ import annotations
 import json
 import sys
 import time
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 BASE = "https://taifex.grichtoyang.workers.dev"
-PROBE_ENDPOINT = "futures-institutional-oi"
+# Use a date-specific end-of-day options dataset as the readiness probe.
+# futures-institutional-oi may be available before the full previous-day
+# options package is published, which could resolve T0 too early.
+PROBE_ENDPOINT = "futures-options-chain"
 MAX_LOOKBACK_DAYS = 10
 
 
@@ -25,7 +28,13 @@ def probe(target: date) -> bool:
     url = f"{BASE}/{PROBE_ENDPOINT}?date={target.isoformat()}"
     for attempt in range(3):
         try:
-            req = Request(url, headers={"accept": "application/json", "user-agent": "daily-pre-market-analysis/1.0"})
+            req = Request(
+                url,
+                headers={
+                    "accept": "application/json",
+                    "user-agent": "daily-pre-market-analysis/1.0",
+                },
+            )
             with urlopen(req, timeout=30) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             return (
