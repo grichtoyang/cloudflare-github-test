@@ -109,7 +109,10 @@ def fetch_json(url: str, retries: int, timeout: int) -> tuple[dict, int, int]:
             )
             with urlopen(request, timeout=timeout) as response:
                 status = response.status
-                payload = json.loads(response.read().decode("utf-8"))
+                raw = response.read()
+                if not raw.strip():
+                    raise ValueError("response body is empty")
+                payload = json.loads(raw.decode("utf-8"))
                 if not isinstance(payload, dict):
                     raise ValueError("response JSON root must be an object")
                 return payload, status, attempt
@@ -132,6 +135,8 @@ def validate_response(name: str, payload: dict, *, t0: str, analysis_date: str) 
 
     if "data" not in payload:
         errors.append(f"{name}: missing data")
+    elif payload.get("data") is None:
+        errors.append(f"{name}: data is null")
     return errors
 
 
@@ -142,6 +147,32 @@ def write_json(path: Path, payload: dict) -> None:
 
 def sha256_file(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def verify_snapshot_file(path: Path, *, expected_date: str) -> list[str]:
+    errors: list[str] = []
+    if not path.exists():
+        return [f"missing snapshot: {path}"]
+    if path.stat().st_size <= 2:
+        return [f"empty snapshot: {path}"]
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"invalid JSON snapshot {path}: {exc}"]
+    if not isinstance(value, dict):
+        errors.append(f"snapshot root is not object: {path}")
+        return errors
+    if value.get("source") != "TAIFEX":
+        errors.append(f"snapshot source != TAIFEX: {path}")
+    if value.get("date") != expected_date:
+        errors.append(f"snapshot date mismatch: {path}")
+    data = value.get("data")
+    if not isinstance(data, dict) or len(data) != len(REQUIRED_ENDPOINTS):
+        errors.append(f"snapshot endpoint payload count mismatch: {path}")
+    validation = value.get("validation")
+    if not isinstance(validation, dict) or validation.get("ready_for_analysis") is not True:
+        errors.append(f"snapshot validation gate is not ready: {path}")
+    return errors
 
 
 def stable_paths(root: Path, target_date: str) -> tuple[Path, Path, Path]:
@@ -171,14 +202,34 @@ def main() -> int:
 
     existing_stable = [p for p in (stable_taifex, stable_snapshot, stable_manifest) if p.exists()]
     if existing_stable:
+        integrity_errors: list[str] = []
+        for path in (stable_taifex, stable_snapshot):
+            integrity_errors.extend(verify_snapshot_file(path, expected_date=args.date))
+        if integrity_errors:
+            print(
+                json.dumps(
+                    {
+                        "date": args.date,
+                        "analysis_date": args.analysis_date,
+                        "ready_for_analysis": False,
+                        "immutable_publication": "blocked",
+                        "reason": "existing stable artifact failed integrity validation",
+                        "errors": integrity_errors,
+                        "existing": [str(p) for p in existing_stable],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+            )
+            return 1
         print(
             json.dumps(
                 {
                     "date": args.date,
                     "analysis_date": args.analysis_date,
-                    "ready_for_analysis": False,
+                    "ready_for_analysis": True,
                     "immutable_publication": "blocked",
-                    "reason": "stable artifact already exists",
+                    "reason": "stable artifact already exists and passed integrity validation",
                     "existing": [str(p) for p in existing_stable],
                 },
                 ensure_ascii=False,
@@ -218,9 +269,7 @@ def main() -> int:
                 "source": payload.get("source"),
                 "dataset": payload.get("dataset"),
                 "response_date": payload.get("date"),
-                "expected_response_date": expected_response_date(
-                    name, t0=args.date, analysis_date=args.analysis_date
-                ),
+                "expected_response_date": expected_response_date(name, t0=args.date, analysis_date=args.analysis_date),
             }
         except RuntimeError as exc:
             endpoint_status[name] = {"ok": False, "url": url, "error": str(exc)}
@@ -240,7 +289,7 @@ def main() -> int:
         "source": "TAIFEX",
         "proxy": args.base_url.rstrip("/"),
         "collector": "daily_snapshot.py",
-        "collector_version": "1.2.0",
+        "collector_version": "1.3.0",
         "run_id": target_attempt_dir.name,
         "data": results,
         "validation": {
@@ -258,7 +307,7 @@ def main() -> int:
 
     snapshot_hash = sha256_file(attempt_snapshot)
     manifest = {
-        "manifest_version": "1.2.0",
+        "manifest_version": "1.3.0",
         "analysis_date": args.analysis_date,
         "t0_trading_date": args.date,
         "run_id": target_attempt_dir.name,
@@ -297,21 +346,12 @@ def main() -> int:
     write_json(attempt_manifest, manifest)
 
     if not all_ok:
-        print(
-            json.dumps(
-                {
-                    "date": args.date,
-                    "analysis_date": args.analysis_date,
-                    "ready_for_analysis": False,
-                    "attempt": str(target_attempt_dir),
-                    "successful_endpoint_count": len(results),
-                    "required_endpoint_count": len(REQUIRED_ENDPOINTS),
-                    "errors": validation_errors,
-                },
-                ensure_ascii=False,
-                indent=2,
-            )
-        )
+        print(json.dumps({"date": args.date, "analysis_date": args.analysis_date, "ready_for_analysis": False, "attempt": str(target_attempt_dir), "successful_endpoint_count": len(results), "required_endpoint_count": len(REQUIRED_ENDPOINTS), "errors": validation_errors}, ensure_ascii=False, indent=2))
+        return 1
+
+    integrity_errors = verify_snapshot_file(attempt_snapshot, expected_date=args.date)
+    if integrity_errors:
+        print(json.dumps({"date": args.date, "analysis_date": args.analysis_date, "ready_for_analysis": False, "errors": integrity_errors}, ensure_ascii=False, indent=2))
         return 1
 
     collisions = [p for p in (stable_taifex, stable_snapshot, stable_manifest) if p.exists()]
@@ -322,29 +362,21 @@ def main() -> int:
     write_json(stable_taifex, snapshot)
     write_json(stable_snapshot, snapshot)
 
+    publication_errors = []
+    publication_errors.extend(verify_snapshot_file(stable_taifex, expected_date=args.date))
+    publication_errors.extend(verify_snapshot_file(stable_snapshot, expected_date=args.date))
+    if publication_errors:
+        print(json.dumps({"date": args.date, "analysis_date": args.analysis_date, "ready_for_analysis": False, "published": False, "errors": publication_errors}, ensure_ascii=False, indent=2), file=sys.stderr)
+        return 1
+
     stable_manifest_payload = dict(manifest)
     stable_manifest_payload["published"] = True
     stable_manifest_payload["published_snapshot"] = str(stable_snapshot)
+    stable_manifest_payload["snapshot_sha256"] = sha256_file(stable_snapshot)
     stable_manifest_payload["ready_for_analysis"] = True
     write_json(stable_manifest, stable_manifest_payload)
 
-    print(
-        json.dumps(
-            {
-                "date": args.date,
-                "analysis_date": args.analysis_date,
-                "ready_for_analysis": True,
-                "published": True,
-                "snapshot": str(stable_snapshot),
-                "manifest": str(stable_manifest),
-                "snapshot_sha256": snapshot_hash,
-                "successful_endpoint_count": len(results),
-                "required_endpoint_count": len(REQUIRED_ENDPOINTS),
-            },
-            ensure_ascii=False,
-            indent=2,
-        )
-    )
+    print(json.dumps({"date": args.date, "analysis_date": args.analysis_date, "ready_for_analysis": True, "published": True, "snapshot": str(stable_snapshot), "manifest": str(stable_manifest), "snapshot_sha256": stable_manifest_payload["snapshot_sha256"], "successful_endpoint_count": len(results), "required_endpoint_count": len(REQUIRED_ENDPOINTS)}, ensure_ascii=False, indent=2))
     return 0
 
 
