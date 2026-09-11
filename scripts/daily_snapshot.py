@@ -5,16 +5,12 @@ The Cloudflare Proxy owns upstream TAIFEX/OpenAPI fallback logic. This collector
 owns collection retries, validation, immutable publication, and the
 READY_FOR_ANALYSIS gate.
 
-Publication model:
-- Every execution writes an immutable attempt under
-  data/snapshots/YYYY-MM-DD/attempt-<UTC timestamp>/.
-- A successful first publication also creates the stable compatibility files
-  data/taifex/YYYY-MM-DD.json, data/snapshots/YYYY-MM-DD/snapshot.json and
-  data/manifests/YYYY-MM-DD.json.
-- Stable daily files are never overwritten. A second successful publication
-  for the same date is rejected.
-- Failed attempts remain available for diagnosis and do not block a later
-  retry, because no stable READY_FOR_ANALYSIS artifact is published.
+Date contract:
+- Date-required historical endpoints are queried/validated against T0.
+- Night-session endpoints are date-less and their response date is validated
+  against Analysis Date, not T0.
+- Date-less regular endpoints are not globally date-compared because the
+  production Worker emits current-date metadata for those endpoints.
 """
 
 from __future__ import annotations
@@ -29,6 +25,8 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+
+from endpoint_date_policy import expected_response_date
 
 DEFAULT_BASE = "https://taifex.grichtoyang.workers.dev"
 REQUIRED_ENDPOINTS = [
@@ -63,7 +61,12 @@ DATE_ENDPOINTS = {
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", default=date.today().isoformat())
+    parser.add_argument("--date", default=date.today().isoformat(), help="T0 trading date")
+    parser.add_argument(
+        "--analysis-date",
+        default=date.today().isoformat(),
+        help="Taiwan analysis calendar date (D)",
+    )
     parser.add_argument("--base-url", default=os.getenv("TAIFEX_PROXY_BASE_URL", DEFAULT_BASE))
     parser.add_argument("--output-root", default="data")
     parser.add_argument("--retries", type=int, default=3)
@@ -117,13 +120,16 @@ def fetch_json(url: str, retries: int, timeout: int) -> tuple[dict, int, int]:
     raise RuntimeError(last_error or "unknown fetch error")
 
 
-def validate_response(name: str, payload: dict, target_date: str) -> list[str]:
+def validate_response(name: str, payload: dict, *, t0: str, analysis_date: str) -> list[str]:
     errors: list[str] = []
     if payload.get("ok") is not True:
         errors.append(f"{name}: ok != true")
+
     response_date = payload.get("date")
-    if response_date and response_date != target_date:
-        errors.append(f"{name}: date={response_date}, expected={target_date}")
+    expected_date = expected_response_date(name, t0=t0, analysis_date=analysis_date)
+    if expected_date is not None and response_date and response_date != expected_date:
+        errors.append(f"{name}: date={response_date}, expected={expected_date}")
+
     if "data" not in payload:
         errors.append(f"{name}: missing data")
     return errors
@@ -149,7 +155,10 @@ def stable_paths(root: Path, target_date: str) -> tuple[Path, Path, Path]:
 def main() -> int:
     args = parse_args()
     if not valid_date(args.date):
-        print(f"Invalid date: {args.date}", file=sys.stderr)
+        print(f"Invalid T0 date: {args.date}", file=sys.stderr)
+        return 2
+    if not valid_date(args.analysis_date):
+        print(f"Invalid analysis date: {args.analysis_date}", file=sys.stderr)
         return 2
     if args.retries < 1:
         print("--retries must be >= 1", file=sys.stderr)
@@ -160,14 +169,13 @@ def main() -> int:
     target_attempt_dir = target_snapshot_dir / f"attempt-{run_id()}"
     stable_taifex, stable_snapshot, stable_manifest = stable_paths(root, args.date)
 
-    # The stable publication is immutable. Existing legacy TAIFEX files are
-    # intentionally treated as a publication collision rather than overwritten.
     existing_stable = [p for p in (stable_taifex, stable_snapshot, stable_manifest) if p.exists()]
     if existing_stable:
         print(
             json.dumps(
                 {
                     "date": args.date,
+                    "analysis_date": args.analysis_date,
                     "ready_for_analysis": False,
                     "immutable_publication": "blocked",
                     "reason": "stable artifact already exists",
@@ -199,7 +207,7 @@ def main() -> int:
         url = endpoint_url(args.base_url, name, args.date)
         try:
             payload, status, attempts = fetch_json(url, args.retries, args.timeout)
-            errors = validate_response(name, payload, args.date)
+            errors = validate_response(name, payload, t0=args.date, analysis_date=args.analysis_date)
             validation_errors.extend(errors)
             results[name] = payload
             endpoint_status[name] = {
@@ -210,6 +218,9 @@ def main() -> int:
                 "source": payload.get("source"),
                 "dataset": payload.get("dataset"),
                 "response_date": payload.get("date"),
+                "expected_response_date": expected_response_date(
+                    name, t0=args.date, analysis_date=args.analysis_date
+                ),
             }
         except RuntimeError as exc:
             endpoint_status[name] = {"ok": False, "url": url, "error": str(exc)}
@@ -224,11 +235,12 @@ def main() -> int:
 
     snapshot = {
         "date": args.date,
+        "analysis_date": args.analysis_date,
         "timestamp": completed,
         "source": "TAIFEX",
         "proxy": args.base_url.rstrip("/"),
         "collector": "daily_snapshot.py",
-        "collector_version": "1.1.0",
+        "collector_version": "1.2.0",
         "run_id": target_attempt_dir.name,
         "data": results,
         "validation": {
@@ -246,8 +258,9 @@ def main() -> int:
 
     snapshot_hash = sha256_file(attempt_snapshot)
     manifest = {
-        "manifest_version": "1.1.0",
-        "analysis_date": args.date,
+        "manifest_version": "1.2.0",
+        "analysis_date": args.analysis_date,
+        "t0_trading_date": args.date,
         "run_id": target_attempt_dir.name,
         "fetch_started_at": started,
         "fetch_completed_at": completed,
@@ -288,6 +301,7 @@ def main() -> int:
             json.dumps(
                 {
                     "date": args.date,
+                    "analysis_date": args.analysis_date,
                     "ready_for_analysis": False,
                     "attempt": str(target_attempt_dir),
                     "successful_endpoint_count": len(results),
@@ -300,8 +314,6 @@ def main() -> int:
         )
         return 1
 
-    # Publish only once, and only after the complete snapshot has passed the gate.
-    # Re-check immediately before publication to avoid accidental overwrites.
     collisions = [p for p in (stable_taifex, stable_snapshot, stable_manifest) if p.exists()]
     if collisions:
         print(f"Immutable publication collision: {[str(p) for p in collisions]}", file=sys.stderr)
@@ -320,6 +332,7 @@ def main() -> int:
         json.dumps(
             {
                 "date": args.date,
+                "analysis_date": args.analysis_date,
                 "ready_for_analysis": True,
                 "published": True,
                 "snapshot": str(stable_snapshot),

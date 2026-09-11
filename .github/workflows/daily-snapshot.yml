@@ -24,6 +24,14 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Resolve Analysis Date
+        id: analysis
+        run: |
+          set -e
+          ANALYSIS_DATE=$(TZ=Asia/Taipei date +%F)
+          echo "Analysis Date=$ANALYSIS_DATE"
+          echo "date=$ANALYSIS_DATE" >> "$GITHUB_OUTPUT"
+
       - name: Resolve T0 trading date
         id: t0
         run: |
@@ -38,7 +46,9 @@ jobs:
           TAIFEX_PROXY_BASE_URL: https://taifex.grichtoyang.workers.dev
         run: |
           set +e
-          python scripts/daily_snapshot.py --date "${{ steps.t0.outputs.date }}"
+          python scripts/daily_snapshot.py \
+            --date "${{ steps.t0.outputs.date }}" \
+            --analysis-date "${{ steps.analysis.outputs.date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
@@ -70,9 +80,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Collect whatever the snapshot stages actually produced. Some
-          # diagnostic/failed runs may not create every data subdirectory.
-          # Using -A avoids a fatal pathspec (exit 128) when one is absent.
           git add -A
           git status --short
 
@@ -83,8 +90,6 @@ jobs:
 
           git commit -m "Update daily pre-market snapshot $(date -u +%F)"
 
-          # The repository may receive another bot/user commit while the
-          # snapshot is being built. Rebase onto the current main before push.
           for attempt in 1 2 3; do
             echo "Push attempt ${attempt}/3"
             git fetch origin main
@@ -112,6 +117,7 @@ jobs:
         if: always() && (steps.t0.outcome != 'success' || steps.taifex.outputs.status != '0' || steps.twse.outputs.status != '0' || steps.unified.outputs.status != '0')
         run: |
           echo "Daily pre-market package validation failed; READY_FOR_ANALYSIS=false."
+          echo "Analysis Date=${{ steps.analysis.outputs.date }}"
           echo "T0=${{ steps.t0.outputs.date }}"
           echo "TAIFEX status=${{ steps.taifex.outputs.status }}"
           echo "TWSE status=${{ steps.twse.outputs.status }}"
