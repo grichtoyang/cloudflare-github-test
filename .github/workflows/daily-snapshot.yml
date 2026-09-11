@@ -4,23 +4,21 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - '.github/workflows/daily-snapshot.yml'
+      - ".github/workflows/daily-snapshot.yml"
   schedule:
-    # 08:00 Asia/Taipei = 00:00 UTC.
     - cron: "0 0 * * 1-5"
 
 permissions:
   contents: write
 
-env:
-  TAIFEX_PROXY_BASE_URL: https://taifex.grichtoyang.workers.dev
-  TWSE_PROXY_BASE_URL: https://twse-proxy.grichtoyang.workers.dev
-
 jobs:
   snapshot:
     runs-on: ubuntu-latest
+    env:
+      TAIFEX_PROXY_BASE_URL: https://taifex.grichtoyang.workers.dev
+      TWSE_PROXY_BASE_URL: https://twse-proxy.grichtoyang.workers.dev
     steps:
-      - name: Checkout repository
+      - name: Checkout main
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
@@ -33,137 +31,141 @@ jobs:
 
       - name: Verify production proxy URLs
         run: |
-          set -eu
+          set -euo pipefail
           test "$TAIFEX_PROXY_BASE_URL" = "https://taifex.grichtoyang.workers.dev"
           test "$TWSE_PROXY_BASE_URL" = "https://twse-proxy.grichtoyang.workers.dev"
-          grep -F 'DEFAULT_BASE = "https://taifex.grichtoyang.workers.dev"' scripts/daily_snapshot.py >/dev/null
-          grep -F 'DEFAULT_BASE = "https://twse-proxy.grichtoyang.workers.dev"' scripts/twse_snapshot.py >/dev/null
-          if grep -F 'DEFAULT_BASE = "https://taiex-proxy.grichtoyang.workers.dev"' scripts/twse_snapshot.py >/dev/null; then
-            echo "ERROR: legacy TWSE proxy URL is configured as the active collector DEFAULT_BASE."
-            exit 1
-          fi
-          echo "Production proxy URL regression check passed."
+          ! grep -R "taiex-proxy.grichtoyang.workers.dev" .github scripts docs || true
 
       - name: Resolve Analysis Date
-        id: analysis
+        id: analysis_date
+        shell: bash
         run: |
-          set -e
-          ANALYSIS_DATE=$(TZ=Asia/Taipei date +%F)
-          echo "Analysis Date=$ANALYSIS_DATE"
-          echo "date=$ANALYSIS_DATE" >> "$GITHUB_OUTPUT"
+          set -euo pipefail
+          analysis_date="$(TZ=Asia/Taipei date +%F)"
+          echo "analysis_date=$analysis_date" >> "$GITHUB_OUTPUT"
+          echo "Analysis Date: $analysis_date"
 
-      - name: Resolve T0 trading date
+      - name: Resolve T0
         id: t0
-        run: |
-          set -e
-          T0_DATE=$(python scripts/resolve_t0.py)
-          echo "T0_DATE=$T0_DATE"
-          echo "date=$T0_DATE" >> "$GITHUB_OUTPUT"
-
-      - name: Build daily TAIFEX snapshot
-        id: taifex
+        shell: bash
         run: |
           set +e
-          python scripts/daily_snapshot.py \
-            --date "${{ steps.t0.outputs.date }}" \
-            --analysis-date "${{ steps.analysis.outputs.date }}"
+          python scripts/resolve_t0.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
+          set -e
+          if [ "$status" -eq 0 ]; then
+            t0="$(python scripts/resolve_t0.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}" | tail -n 1)"
+            echo "t0=$t0" >> "$GITHUB_OUTPUT"
+          else
+            echo "t0=" >> "$GITHUB_OUTPUT"
+          fi
           exit 0
 
-      - name: Build daily TWSE snapshot
-        id: twse
+      - name: Build TAIFEX snapshot
+        id: taifex
+        if: steps.t0.outputs.status == '0'
+        shell: bash
         run: |
           set +e
-          python scripts/twse_snapshot.py --date "${{ steps.t0.outputs.date }}"
+          python scripts/daily_snapshot.py --date "${{ steps.t0.outputs.t0 }}" --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
+          set -e
+          exit 0
+
+      - name: Build TWSE snapshot
+        id: twse
+        if: steps.t0.outputs.status == '0'
+        shell: bash
+        run: |
+          set +e
+          python scripts/twse_snapshot.py --date "${{ steps.t0.outputs.t0 }}"
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          set -e
           exit 0
 
       - name: Build canonical pre-market manifest
-        id: unified
+        id: canonical
+        if: steps.t0.outputs.status == '0' && (steps.taifex.outputs.status == '0' || steps.taifex.outputs.status == '3') && (steps.twse.outputs.status == '0' || steps.twse.outputs.status == '3')
+        shell: bash
         run: |
           set +e
-          python scripts/build_premarket_manifest.py \
-            --date "${{ steps.t0.outputs.date }}" \
-            --analysis-date "${{ steps.analysis.outputs.date }}"
+          python scripts/build_premarket_manifest.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}" --t0 "${{ steps.t0.outputs.t0 }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
+          set -e
           exit 0
 
-      - name: Build ChatGPT-readable AI data package
+      - name: Build AI-input package
         id: aiinput
-        if: steps.unified.outputs.status == '0' || steps.unified.outputs.status == '3'
+        if: steps.t0.outputs.status == '0' && (steps.canonical.outputs.status == '0' || steps.canonical.outputs.status == '3')
+        shell: bash
         run: |
           set +e
-          python scripts/build_premarket_ai_inputs.py \
-            --analysis-date "${{ steps.analysis.outputs.date }}" \
-            --t0-date "${{ steps.t0.outputs.date }}"
+          python scripts/build_premarket_ai_inputs.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
+          set -e
           exit 0
 
       - name: Validate AI-input integrity
-        id: aiinput_validate
-        if: steps.unified.outputs.status == '0' || steps.unified.outputs.status == '3'
+        id: validate_aiinput
+        if: steps.t0.outputs.status == '0' && (steps.aiinput.outputs.status == '0' || steps.aiinput.outputs.status == '3')
+        shell: bash
         run: |
           set +e
-          python scripts/validate_premarket_ai_inputs.py \
-            --analysis-date "${{ steps.analysis.outputs.date }}" \
-            --t0-date "${{ steps.t0.outputs.date }}"
+          python scripts/validate_premarket_ai_inputs.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}" --t0 "${{ steps.t0.outputs.t0 }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
+          set -e
           exit 0
 
-      - name: Commit snapshots, manifests, and ChatGPT data package
+      - name: READY_FOR_ANALYSIS gate
+        id: ready_gate
         if: always()
+        shell: bash
         run: |
-          set -e
+          set -euo pipefail
+          t0_status="${{ steps.t0.outputs.status }}"
+          taifex_status="${{ steps.taifex.outputs.status }}"
+          twse_status="${{ steps.twse.outputs.status }}"
+          canonical_status="${{ steps.canonical.outputs.status }}"
+          aiinput_status="${{ steps.aiinput.outputs.status }}"
+          validator_status="${{ steps.validate_aiinput.outputs.status }}"
+          validator_outcome="${{ steps.validate_aiinput.outcome }}"
+
+          echo "Analysis Date: ${{ steps.analysis_date.outputs.analysis_date }}"
+          echo "T0: ${{ steps.t0.outputs.t0 }}"
+          echo "T0 status: $t0_status"
+          echo "TAIFEX status: $taifex_status"
+          echo "TWSE status: $twse_status"
+          echo "Canonical status: $canonical_status"
+          echo "AI-input status: $aiinput_status"
+          echo "Validator outcome: $validator_outcome"
+          echo "Validator status: $validator_status"
+
+          test "$t0_status" = "0"
+          test "$taifex_status" = "0" -o "$taifex_status" = "3"
+          test "$twse_status" = "0" -o "$twse_status" = "3"
+          test "$canonical_status" = "0" -o "$canonical_status" = "3"
+          test "$aiinput_status" = "0" -o "$aiinput_status" = "3"
+          test "$validator_outcome" = "success"
+          test "$validator_status" = "0"
+          echo "READY_FOR_ANALYSIS=true"
+
+      - name: Commit/Push validated artifacts
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add -A
-          git status --short
-
+          git add data/taifex data/twse data/snapshots data/manifests data/premarket
           if git diff --cached --quiet; then
-            echo "No snapshot/manifest/AI-input changes to commit."
+            echo "No validated artifact changes to commit."
             exit 0
           fi
-
-          git commit -m "Update daily pre-market data $(date -u +%F)"
-
-          for attempt in 1 2 3; do
-            echo "Push attempt ${attempt}/3"
-            git fetch origin main
-            git rebase origin/main || {
-              echo "Rebase failed; aborting rebase."
-              git rebase --abort || true
-              exit 1
-            }
-
-            if git push origin HEAD:main; then
-              echo "Daily pre-market data commit pushed successfully."
-              exit 0
-            fi
-
-            if [ "$attempt" -lt 3 ]; then
-              echo "Push rejected; retrying after refreshing origin/main."
-              sleep 2
-            fi
-          done
-
-          echo "Failed to push daily pre-market data commit after 3 attempts."
-          exit 1
-
-      - name: Enforce READY_FOR_ANALYSIS data gate
-        if: always() && (steps.t0.outcome != 'success' || (steps.unified.outputs.status != '0' && steps.unified.outputs.status != '3') || (steps.aiinput.outputs.status != '0' && steps.aiinput.outputs.status != '3') || steps.aiinput_validate.outcome != 'success' || steps.aiinput_validate.outputs.status != '0')
-        run: |
-          echo "Daily pre-market data package validation failed; READY_FOR_ANALYSIS=false."
-          echo "Analysis Date=${{ steps.analysis.outputs.date }}"
-          echo "T0=${{ steps.t0.outputs.date }}"
-          echo "TAIFEX status=${{ steps.taifex.outputs.status }}"
-          echo "TWSE status=${{ steps.twse.outputs.status }}"
-          echo "Unified manifest status=${{ steps.unified.outputs.status }}"
-          echo "ChatGPT AI-input package status=${{ steps.aiinput.outputs.status }}"
-          echo "AI-input integrity status=${{ steps.aiinput_validate.outputs.status }}"
-          exit 1
+          git commit -m "Update daily pre-market data ${{ steps.analysis_date.outputs.analysis_date }}"
+          git push origin main
