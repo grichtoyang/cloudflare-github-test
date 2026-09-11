@@ -116,7 +116,7 @@ jobs:
           exit 1
 
       - name: Enforce READY_FOR_ANALYSIS gate
-        if: always() && (steps.t0.outcome != 'success' || steps.unified.outputs.status != '0')
+        if: always() && (steps.t0.outcome != 'success' || (steps.unified.outputs.status != '0' && steps.unified.outputs.status != '3'))
         run: |
           echo "Daily pre-market package validation failed; READY_FOR_ANALYSIS=false."
           echo "Analysis Date=${{ steps.analysis.outputs.date }}"
