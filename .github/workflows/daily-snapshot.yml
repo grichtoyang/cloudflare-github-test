@@ -24,13 +24,21 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Resolve T0 trading date
+        id: t0
+        run: |
+          set -e
+          T0_DATE=$(python scripts/resolve_t0.py)
+          echo "T0_DATE=$T0_DATE"
+          echo "date=$T0_DATE" >> "$GITHUB_OUTPUT"
+
       - name: Build daily TAIFEX snapshot
         id: taifex
         env:
           TAIFEX_PROXY_BASE_URL: https://taifex.grichtoyang.workers.dev
         run: |
           set +e
-          python scripts/daily_snapshot.py
+          python scripts/daily_snapshot.py --date "${{ steps.t0.outputs.date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
@@ -38,10 +46,10 @@ jobs:
       - name: Build daily TWSE snapshot
         id: twse
         env:
-          TWSE_PROXY_BASE_URL: https://twse-proxy.grichtoyang.workers.dev
+          TWSE_PROXY_BASE_URL: https://taiex-proxy.grichtoyang.workers.dev
         run: |
           set +e
-          python scripts/twse_snapshot.py
+          python scripts/twse_snapshot.py --date "${{ steps.t0.outputs.date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
@@ -50,7 +58,7 @@ jobs:
         id: unified
         run: |
           set +e
-          python scripts/build_premarket_manifest.py
+          python scripts/build_premarket_manifest.py --date "${{ steps.t0.outputs.date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
@@ -101,9 +109,10 @@ jobs:
           exit 1
 
       - name: Enforce READY_FOR_ANALYSIS gate
-        if: steps.taifex.outputs.status != '0' || steps.twse.outputs.status != '0' || steps.unified.outputs.status != '0'
+        if: always() && (steps.t0.outcome != 'success' || steps.taifex.outputs.status != '0' || steps.twse.outputs.status != '0' || steps.unified.outputs.status != '0')
         run: |
           echo "Daily pre-market package validation failed; READY_FOR_ANALYSIS=false."
+          echo "T0=${{ steps.t0.outputs.date }}"
           echo "TAIFEX status=${{ steps.taifex.outputs.status }}"
           echo "TWSE status=${{ steps.twse.outputs.status }}"
           echo "Unified manifest status=${{ steps.unified.outputs.status }}"
