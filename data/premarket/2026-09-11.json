@@ -1,0 +1,36 @@
+{
+  "manifest_version": "1.2.0",
+  "manifest_type": "pre-market",
+  "analysis_date": "2026-09-11",
+  "t0_trading_date": "2026-09-10",
+  "created_at": "2026-09-11T01:19:23.786613Z",
+  "fetch_started_at": "2026-09-11T01:19:23.786404Z",
+  "fetch_completed_at": "2026-09-11T01:19:23.786613Z",
+  "sources": {
+    "TAIFEX": {
+      "ready_for_analysis": true,
+      "manifest": "data/manifests/2026-09-10.json",
+      "snapshot": "data/snapshots/2026-09-10/snapshot.json",
+      "snapshot_sha256": "03fe3f2ab8b8af3252a397bb3be11f2e8155536d6ee865a0dd3263007f0b80e0"
+    },
+    "TWSE": {
+      "ready_for_analysis": true,
+      "manifest": "data/manifests/2026-09-10.twse.json",
+      "snapshot": "data/snapshots/2026-09-10/twse-snapshot.json",
+      "snapshot_sha256": "f1375b09d2212d24205b448a78491f8696e73610b41ce3989f9e59736a28772e"
+    }
+  },
+  "validation": {
+    "required_sources": [
+      "TAIFEX",
+      "TWSE"
+    ],
+    "successful_sources": [
+      "TAIFEX",
+      "TWSE"
+    ],
+    "validation_errors": []
+  },
+  "ready_for_analysis": true,
+  "published": true
+}
