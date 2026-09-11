@@ -1,0 +1,36 @@
+{
+  "date": "2026-09-11",
+  "timestamp": "2026-09-11T00:09:42.906152Z",
+  "source": "TWSE",
+  "proxy": "https://twse-proxy.grichtoyang.workers.dev",
+  "collector": "twse_snapshot.py",
+  "collector_version": "1.0.0",
+  "data": {
+    "ok": true,
+    "source": "TWSE",
+    "proxy": "twse-proxy",
+    "version": "1.0.0",
+    "date": "2026-09-11",
+    "endpoints": {
+      "IND": {
+        "status": 200,
+        "fetch_ok": true
+      },
+      "MS": {
+        "status": 200,
+        "fetch_ok": true
+      }
+    },
+    "data": {
+      "taiex": null,
+      "market_statistics": null,
+      "advance_decline": null
+    }
+  },
+  "validation": {
+    "required_endpoint_count": 2,
+    "successful_endpoint_count": 2,
+    "errors": [],
+    "ready_for_analysis": true
+  }
+}

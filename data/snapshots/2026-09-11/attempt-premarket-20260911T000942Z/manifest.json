@@ -1,0 +1,40 @@
+{
+  "manifest_version": "1.1.0",
+  "manifest_type": "pre-market",
+  "analysis_date": "2026-09-11",
+  "created_at": "2026-09-11T00:09:42.954381Z",
+  "fetch_started_at": "2026-09-11T00:09:42.954274Z",
+  "fetch_completed_at": "2026-09-11T00:09:42.954381Z",
+  "sources": {
+    "TAIFEX": {
+      "ready_for_analysis": false,
+      "manifest": "data/manifests/2026-09-11.json",
+      "snapshot": null,
+      "snapshot_sha256": null
+    },
+    "TWSE": {
+      "ready_for_analysis": true,
+      "manifest": "data/manifests/2026-09-11.twse.json",
+      "snapshot": "data/snapshots/2026-09-11/twse-snapshot.json",
+      "snapshot_sha256": "a09af8e679ffc0fa899656d4c2442016e97656f0d73b35f43b0c8066d26cb3f0"
+    }
+  },
+  "validation": {
+    "required_sources": [
+      "TAIFEX",
+      "TWSE"
+    ],
+    "successful_sources": [
+      "TWSE"
+    ],
+    "validation_errors": [
+      "missing manifest: data/manifests/2026-09-11.json"
+    ]
+  },
+  "ready_for_analysis": false,
+  "published": false,
+  "attempt_artifacts": {
+    "manifest": "data/snapshots/2026-09-11/attempt-premarket-20260911T000942Z/manifest.json",
+    "manifest_sha256": "30b6422ec60fc61d1fe2dd0b7579988006559866964666048ac66f393f2dcc46"
+  }
+}

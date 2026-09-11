@@ -1,0 +1,36 @@
+{
+  "manifest_version": "1.0.0",
+  "analysis_date": "2026-09-11",
+  "fetch_started_at": "2026-09-11T00:09:40.890864Z",
+  "fetch_completed_at": "2026-09-11T00:09:42.906152Z",
+  "source": "TWSE",
+  "primary_source": "https://twse-proxy.grichtoyang.workers.dev",
+  "required_endpoints": [
+    "IND",
+    "MS"
+  ],
+  "required_endpoint_count": 2,
+  "successful_endpoint_count": 2,
+  "endpoint_status": {
+    "IND": {
+      "status": 200,
+      "fetch_ok": true
+    },
+    "MS": {
+      "status": 200,
+      "fetch_ok": true
+    }
+  },
+  "validation": {
+    "validation_errors": [],
+    "all_required_endpoints_ok": true
+  },
+  "attempt_artifacts": {
+    "snapshot": "data/snapshots/2026-09-11/attempt-twse-20260911T000942Z/twse-snapshot.json",
+    "manifest": "data/snapshots/2026-09-11/attempt-twse-20260911T000942Z/manifest.json",
+    "snapshot_sha256": "a09af8e679ffc0fa899656d4c2442016e97656f0d73b35f43b0c8066d26cb3f0"
+  },
+  "ready_for_analysis": true,
+  "published": true,
+  "published_snapshot": "data/snapshots/2026-09-11/twse-snapshot.json"
+}
