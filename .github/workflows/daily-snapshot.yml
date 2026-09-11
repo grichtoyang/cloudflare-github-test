@@ -103,6 +103,18 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
+      - name: Validate AI-input integrity
+        id: aiinput_validate
+        if: steps.unified.outputs.status == '0' || steps.unified.outputs.status == '3'
+        run: |
+          set +e
+          python scripts/validate_premarket_ai_inputs.py \
+            --analysis-date "${{ steps.analysis.outputs.date }}" \
+            --t0-date "${{ steps.t0.outputs.date }}"
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
       - name: Commit snapshots, manifests, and ChatGPT data package
         if: always()
         run: |
@@ -144,7 +156,7 @@ jobs:
           exit 1
 
       - name: Enforce READY_FOR_ANALYSIS data gate
-        if: always() && (steps.t0.outcome != 'success' || (steps.unified.outputs.status != '0' && steps.unified.outputs.status != '3') || (steps.aiinput.outputs.status != '0' && steps.aiinput.outputs.status != '3'))
+        if: always() && (steps.t0.outcome != 'success' || (steps.unified.outputs.status != '0' && steps.unified.outputs.status != '3') || (steps.aiinput.outputs.status != '0' && steps.aiinput.outputs.status != '3') || steps.aiinput_validate.outcome != 'success' || steps.aiinput_validate.outputs.status != '0')
         run: |
           echo "Daily pre-market data package validation failed; READY_FOR_ANALYSIS=false."
           echo "Analysis Date=${{ steps.analysis.outputs.date }}"
@@ -153,4 +165,5 @@ jobs:
           echo "TWSE status=${{ steps.twse.outputs.status }}"
           echo "Unified manifest status=${{ steps.unified.outputs.status }}"
           echo "ChatGPT AI-input package status=${{ steps.aiinput.outputs.status }}"
+          echo "AI-input integrity status=${{ steps.aiinput_validate.outputs.status }}"
           exit 1
