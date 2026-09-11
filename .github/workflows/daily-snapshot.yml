@@ -88,7 +88,21 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           exit 0
 
-      - name: Commit snapshots and manifests
+      - name: Generate automated AI pre-market report
+        id: report
+        if: steps.unified.outputs.status == '0' || steps.unified.outputs.status == '3'
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-5.6-luna' }}
+        run: |
+          set +e
+          python scripts/generate_premarket_report.py \
+            --analysis-date "${{ steps.analysis.outputs.date }}"
+          status=$?
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Commit snapshots, manifest, and report
         if: always()
         run: |
           set -e
@@ -99,7 +113,7 @@ jobs:
           git status --short
 
           if git diff --cached --quiet; then
-            echo "No snapshot changes to commit."
+            echo "No snapshot/report changes to commit."
             exit 0
           fi
 
@@ -115,7 +129,7 @@ jobs:
             }
 
             if git push origin HEAD:main; then
-              echo "Snapshot commit pushed successfully."
+              echo "Snapshot/report commit pushed successfully."
               exit 0
             fi
 
@@ -125,16 +139,17 @@ jobs:
             fi
           done
 
-          echo "Failed to push snapshot commit after 3 attempts."
+          echo "Failed to push snapshot/report commit after 3 attempts."
           exit 1
 
       - name: Enforce READY_FOR_ANALYSIS gate
-        if: always() && (steps.t0.outcome != 'success' || (steps.unified.outputs.status != '0' && steps.unified.outputs.status != '3'))
+        if: always() && (steps.t0.outcome != 'success' || (steps.unified.outputs.status != '0' && steps.unified.outputs.status != '3') || (steps.report.outputs.status != '0' && steps.report.outputs.status != '3'))
         run: |
-          echo "Daily pre-market package validation failed; READY_FOR_ANALYSIS=false."
+          echo "Daily pre-market package/report validation failed; READY_FOR_ANALYSIS=false."
           echo "Analysis Date=${{ steps.analysis.outputs.date }}"
           echo "T0=${{ steps.t0.outputs.date }}"
           echo "TAIFEX status=${{ steps.taifex.outputs.status }}"
           echo "TWSE status=${{ steps.twse.outputs.status }}"
           echo "Unified manifest status=${{ steps.unified.outputs.status }}"
+          echo "Report status=${{ steps.report.outputs.status }}"
           exit 1
