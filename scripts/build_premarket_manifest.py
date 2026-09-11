@@ -36,11 +36,29 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def validate_source_manifest(
-    path: Path,
-    source: str,
-    expected_analysis_date: str,
-) -> tuple[bool, list[str], dict]:
+def validate_published_snapshot(path: Path, source: str, t0_date: str) -> list[str]:
+    errors: list[str] = []
+    if not path.exists():
+        return [f"{source} published snapshot missing: {path}"]
+    if path.stat().st_size <= 2:
+        return [f"{source} published snapshot is empty: {path}"]
+    try:
+        snapshot = read_json(path)
+    except Exception as exc:
+        return [f"{source} published snapshot invalid JSON: {exc}"]
+
+    if snapshot.get("source") != source:
+        errors.append(f"{source} snapshot source mismatch")
+    if snapshot.get("date") != t0_date:
+        errors.append(f"{source} snapshot date mismatch")
+    if snapshot.get("validation", {}).get("ready_for_analysis") is not True:
+        errors.append(f"{source} snapshot ready_for_analysis != true")
+    if not isinstance(snapshot.get("data"), dict) or not snapshot.get("data"):
+        errors.append(f"{source} snapshot data is empty")
+    return errors
+
+
+def validate_source_manifest(path: Path, source: str, expected_analysis_date: str, t0_date: str) -> tuple[bool, list[str], dict]:
     errors: list[str] = []
     if not path.exists():
         return False, [f"missing manifest: {path}"], {}
@@ -60,19 +78,20 @@ def validate_source_manifest(
     snapshot = manifest.get("published_snapshot")
     if not snapshot:
         errors.append(f"{source} published_snapshot missing")
-    elif not Path(snapshot).exists():
-        errors.append(f"{source} published snapshot missing: {snapshot}")
+    else:
+        errors.extend(validate_published_snapshot(Path(snapshot), source, t0_date))
+        expected_hash = manifest.get("snapshot_sha256")
+        if expected_hash:
+            actual_hash = sha256(Path(snapshot))
+            if actual_hash != expected_hash:
+                errors.append(f"{source} snapshot SHA256 mismatch")
     return not errors, errors, manifest
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--date", default=date.today().isoformat(), help="T0 trading date")
-    parser.add_argument(
-        "--analysis-date",
-        default=None,
-        help="Taiwan calendar date for the pre-market analysis; defaults to --date",
-    )
+    parser.add_argument("--analysis-date", default=None, help="Taiwan calendar date for the pre-market analysis; defaults to --date")
     parser.add_argument("--output-root", default="data")
     args = parser.parse_args(argv)
 
@@ -90,10 +109,6 @@ def main(argv: list[str] | None = None) -> int:
     taifex_path = root / "manifests" / f"{t0_date}.json"
     twse_path = root / "manifests" / f"{t0_date}.twse.json"
 
-    # A published package is immutable. A valid existing package is an
-    # idempotent success (status 3 means "already published"). An invalid
-    # canonical artifact is a real validation failure and must not be treated
-    # as a successful rerun.
     if output.exists():
         try:
             existing = read_json(output)
@@ -106,21 +121,14 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     started = now_utc()
-    # TAIFEX is produced with both T0 and Analysis Date because night-session
-    # endpoints are correctly labeled with Analysis Date. TWSE is a completed
-    # cash-market snapshot and therefore carries T0 as its analysis_date.
-    taifex_ok, taifex_errors, taifex = validate_source_manifest(
-        taifex_path, "TAIFEX", analysis_date
-    )
-    twse_ok, twse_errors, twse = validate_source_manifest(
-        twse_path, "TWSE", t0_date
-    )
+    taifex_ok, taifex_errors, taifex = validate_source_manifest(taifex_path, "TAIFEX", analysis_date, t0_date)
+    twse_ok, twse_errors, twse = validate_source_manifest(twse_path, "TWSE", t0_date, t0_date)
     errors = taifex_errors + twse_errors
     ready = taifex_ok and twse_ok
     completed = now_utc()
 
     manifest = {
-        "manifest_version": "1.2.0",
+        "manifest_version": "1.3.0",
         "manifest_type": "pre-market",
         "analysis_date": analysis_date,
         "t0_trading_date": t0_date,
