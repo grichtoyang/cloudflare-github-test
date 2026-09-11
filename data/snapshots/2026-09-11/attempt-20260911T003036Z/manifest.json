@@ -1,0 +1,192 @@
+{
+  "manifest_version": "1.1.0",
+  "analysis_date": "2026-09-11",
+  "run_id": "attempt-20260911T003036Z",
+  "fetch_started_at": "2026-09-11T00:30:36.543496Z",
+  "fetch_completed_at": "2026-09-11T00:32:31.060651Z",
+  "source": "TAIFEX",
+  "primary_source": "https://taifex.grichtoyang.workers.dev",
+  "required_endpoint_count": 15,
+  "successful_endpoint_count": 10,
+  "required_endpoints": [
+    "futures-institutional-after-hours",
+    "futures-institutional",
+    "futures-price",
+    "futures-price-after-hours",
+    "futures-institutional-oi",
+    "futures-institutional-oi-history",
+    "futures-options-chain",
+    "options-delta",
+    "options-key-levels",
+    "options-gamma-levels",
+    "options-market-structure",
+    "options-market-structure-compact",
+    "options-institutional",
+    "options-institutional-after-hours",
+    "options-after-hours"
+  ],
+  "endpoint_status": {
+    "health": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/health"
+    },
+    "futures-institutional-after-hours": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/futures-institutional-after-hours",
+      "source": "TAIFEX",
+      "dataset": "futures_institutional_after_hours",
+      "response_date": "2026-09-11"
+    },
+    "futures-institutional": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/futures-institutional",
+      "source": "TAIFEX",
+      "dataset": "futures_institutional",
+      "response_date": "2026-09-11"
+    },
+    "futures-price": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/futures-price",
+      "source": "TAIFEX",
+      "dataset": "futures_market",
+      "response_date": "2026-09-11"
+    },
+    "futures-price-after-hours": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/futures-price-after-hours",
+      "source": "TAIFEX",
+      "dataset": "futures_market_after_hours",
+      "response_date": "2026-09-11"
+    },
+    "futures-institutional-oi": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/futures-institutional-oi?date=2026-09-11",
+      "source": "TAIFEX",
+      "dataset": "futures_institutional_oi",
+      "response_date": "2026-09-11"
+    },
+    "futures-institutional-oi-history": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/futures-institutional-oi-history?date=2026-09-11",
+      "source": "TAIFEX",
+      "dataset": "futures_institutional_oi_history",
+      "response_date": null
+    },
+    "futures-options-chain": {
+      "ok": false,
+      "url": "https://taifex.grichtoyang.workers.dev/futures-options-chain?date=2026-09-11",
+      "error": "HTTP Error 502: Bad Gateway"
+    },
+    "options-delta": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/options-delta?date=2026-09-11",
+      "source": "TAIFEX",
+      "dataset": "options_daily_delta",
+      "response_date": "2026-09-11"
+    },
+    "options-key-levels": {
+      "ok": false,
+      "url": "https://taifex.grichtoyang.workers.dev/options-key-levels?date=2026-09-11",
+      "error": "HTTP Error 502: Bad Gateway"
+    },
+    "options-gamma-levels": {
+      "ok": false,
+      "url": "https://taifex.grichtoyang.workers.dev/options-gamma-levels?date=2026-09-11",
+      "error": "HTTP Error 502: Bad Gateway"
+    },
+    "options-market-structure": {
+      "ok": false,
+      "url": "https://taifex.grichtoyang.workers.dev/options-market-structure?date=2026-09-11",
+      "error": "HTTP Error 502: Bad Gateway"
+    },
+    "options-market-structure-compact": {
+      "ok": false,
+      "url": "https://taifex.grichtoyang.workers.dev/options-market-structure-compact?date=2026-09-11",
+      "error": "HTTP Error 502: Bad Gateway"
+    },
+    "options-institutional": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/options-institutional",
+      "source": "TAIFEX",
+      "dataset": "options_institutional",
+      "response_date": "2026-09-11"
+    },
+    "options-institutional-after-hours": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/options-institutional-after-hours",
+      "source": "TAIFEX",
+      "dataset": "options_institutional_after_hours",
+      "response_date": "2026-09-11"
+    },
+    "options-after-hours": {
+      "ok": true,
+      "status": 200,
+      "attempts": 1,
+      "url": "https://taifex.grichtoyang.workers.dev/options-after-hours",
+      "source": "TAIFEX",
+      "dataset": "options_calls_puts_after_hours",
+      "response_date": "2026-09-11"
+    }
+  },
+  "validation": {
+    "health_ok": true,
+    "all_required_endpoints_ok": false,
+    "validation_errors": [
+      "futures-options-chain: HTTP Error 502: Bad Gateway",
+      "options-key-levels: HTTP Error 502: Bad Gateway",
+      "options-gamma-levels: HTTP Error 502: Bad Gateway",
+      "options-market-structure: HTTP Error 502: Bad Gateway",
+      "options-market-structure-compact: HTTP Error 502: Bad Gateway"
+    ]
+  },
+  "freshness": {
+    "collector_completed_at": "2026-09-11T00:32:31.060651Z",
+    "response_dates": {
+      "futures-institutional-after-hours": "2026-09-11",
+      "futures-institutional": "2026-09-11",
+      "futures-price": "2026-09-11",
+      "futures-price-after-hours": "2026-09-11",
+      "futures-institutional-oi": "2026-09-11",
+      "futures-institutional-oi-history": null,
+      "futures-options-chain": null,
+      "options-delta": "2026-09-11",
+      "options-key-levels": null,
+      "options-gamma-levels": null,
+      "options-market-structure": null,
+      "options-market-structure-compact": null,
+      "options-institutional": "2026-09-11",
+      "options-institutional-after-hours": "2026-09-11",
+      "options-after-hours": "2026-09-11"
+    }
+  },
+  "fallback": {
+    "handled_by": "TAIFEX Cloudflare Proxy",
+    "status": "delegated_to_proxy"
+  },
+  "attempt_artifacts": {
+    "snapshot": "data/snapshots/2026-09-11/attempt-20260911T003036Z/snapshot.json",
+    "manifest": "data/snapshots/2026-09-11/attempt-20260911T003036Z/manifest.json",
+    "snapshot_sha256": "6e64526a8c02c234d4658dcdaf61e9dd345736eb534b225a75393b8717cda82a"
+  },
+  "ready_for_analysis": false
+}
