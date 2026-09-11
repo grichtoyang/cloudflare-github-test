@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Build the canonical immutable daily pre-market manifest.
 
-Only a fully validated package is published to data/premarket/YYYY-MM-DD.json.
-Failed validation is retained under data/snapshots/YYYY-MM-DD/attempt-premarket-*/
-and never blocks a later retry.
+The source snapshot date is T0 (the latest completed trading date), while
+``analysis_date`` is the Taiwan calendar date on which the pre-market report
+is being produced.  These are deliberately separate concepts.
+
+Only a fully validated package is published to
+``data/premarket/<analysis_date>.json``. Failed validation is retained under
+``data/snapshots/<t0>/attempt-premarket-*/`` and never blocks a later retry.
 """
 
 from __future__ import annotations
@@ -32,7 +36,11 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def validate_source_manifest(path: Path, source: str, target_date: str) -> tuple[bool, list[str], dict]:
+def validate_source_manifest(
+    path: Path,
+    source: str,
+    expected_analysis_date: str,
+) -> tuple[bool, list[str], dict]:
     errors: list[str] = []
     if not path.exists():
         return False, [f"missing manifest: {path}"], {}
@@ -41,7 +49,7 @@ def validate_source_manifest(path: Path, source: str, target_date: str) -> tuple
     except Exception as exc:
         return False, [f"cannot read {path}: {exc}"], {}
 
-    if manifest.get("analysis_date") != target_date:
+    if manifest.get("analysis_date") != expected_analysis_date:
         errors.append(f"{source} analysis_date mismatch")
     if manifest.get("source") != source:
         errors.append(f"{source} source mismatch")
@@ -57,22 +65,30 @@ def validate_source_manifest(path: Path, source: str, target_date: str) -> tuple
     return not errors, errors, manifest
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--date", default=date.today().isoformat())
+    parser.add_argument("--date", default=date.today().isoformat(), help="T0 trading date")
+    parser.add_argument(
+        "--analysis-date",
+        default=None,
+        help="Taiwan calendar date for the pre-market analysis; defaults to --date",
+    )
     parser.add_argument("--output-root", default="data")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     try:
         date.fromisoformat(args.date)
+        analysis_date = args.analysis_date or args.date
+        date.fromisoformat(analysis_date)
     except ValueError:
-        print(f"Invalid date: {args.date}", file=sys.stderr)
+        print(f"Invalid date: {args.date} / analysis date: {args.analysis_date}", file=sys.stderr)
         return 2
 
+    t0_date = args.date
     root = Path(args.output_root)
-    output = root / "premarket" / f"{args.date}.json"
-    taifex_path = root / "manifests" / f"{args.date}.json"
-    twse_path = root / "manifests" / f"{args.date}.twse.json"
+    output = root / "premarket" / f"{analysis_date}.json"
+    taifex_path = root / "manifests" / f"{t0_date}.json"
+    twse_path = root / "manifests" / f"{t0_date}.twse.json"
 
     # A published package is immutable. A failed attempt is never written to
     # this canonical path, so failed runs can always be retried.
@@ -82,22 +98,30 @@ def main() -> int:
         except Exception:
             existing = {}
         if existing.get("ready_for_analysis") is True and existing.get("published") is True:
-            print(json.dumps({"date": args.date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
+            print(json.dumps({"date": t0_date, "analysis_date": analysis_date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
             return 3
-        print(json.dumps({"date": args.date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "invalid canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
+        print(json.dumps({"date": t0_date, "analysis_date": analysis_date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "invalid canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
         return 3
 
     started = now_utc()
-    taifex_ok, taifex_errors, taifex = validate_source_manifest(taifex_path, "TAIFEX", args.date)
-    twse_ok, twse_errors, twse = validate_source_manifest(twse_path, "TWSE", args.date)
+    # TAIFEX is produced with both T0 and Analysis Date because night-session
+    # endpoints are correctly labeled with Analysis Date. TWSE is a completed
+    # cash-market snapshot and therefore carries T0 as its analysis_date.
+    taifex_ok, taifex_errors, taifex = validate_source_manifest(
+        taifex_path, "TAIFEX", analysis_date
+    )
+    twse_ok, twse_errors, twse = validate_source_manifest(
+        twse_path, "TWSE", t0_date
+    )
     errors = taifex_errors + twse_errors
     ready = taifex_ok and twse_ok
     completed = now_utc()
 
     manifest = {
-        "manifest_version": "1.1.0",
+        "manifest_version": "1.2.0",
         "manifest_type": "pre-market",
-        "analysis_date": args.date,
+        "analysis_date": analysis_date,
+        "t0_trading_date": t0_date,
         "created_at": completed,
         "fetch_started_at": started,
         "fetch_completed_at": completed,
@@ -125,11 +149,12 @@ def main() -> int:
     }
 
     if not ready:
-        attempt_dir = root / "snapshots" / args.date / f"attempt-premarket-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+        attempt_dir = root / "snapshots" / t0_date / f"attempt-premarket-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
         attempt_manifest = attempt_dir / "manifest.json"
         attempt_dir.mkdir(parents=True, exist_ok=True)
+        manifest["attempt_artifacts"] = {"manifest": str(attempt_manifest)}
         attempt_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        manifest["attempt_artifacts"] = {"manifest": str(attempt_manifest), "manifest_sha256": sha256(attempt_manifest)}
+        manifest["attempt_artifacts"]["manifest_sha256"] = sha256(attempt_manifest)
         attempt_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(manifest, ensure_ascii=False, indent=2))
         return 1
