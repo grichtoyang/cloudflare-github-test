@@ -120,7 +120,7 @@ def main(argv=None) -> int:
         "source": "TWSE",
         "proxy": url,
         "collector": "twse_snapshot.py",
-        "collector_version": "1.1.0",
+        "collector_version": "1.0.0",
         "data": payload,
         "validation": {
             "required_endpoint_count": 2,
