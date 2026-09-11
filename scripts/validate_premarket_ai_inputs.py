@@ -63,7 +63,8 @@ def main() -> int:
 
     root = Path(args.output_root)
     canonical_path = root / f"{args.analysis_date}.json"
-    index_path = root / args.analysis_date / "ai-input" / "index.json"
+    ai_root = root / args.analysis_date / "ai-input"
+    index_path = ai_root / "index.json"
     errors: list[str] = []
 
     try:
@@ -111,15 +112,29 @@ def main() -> int:
         errors.append(f"AI-input file count={len(files)}, expected={len(expected_names)}")
 
     seen: set[str] = set()
+    resolved_ai_root = ai_root.resolve()
     for item in files:
         if not isinstance(item, dict):
             errors.append("index contains non-object file entry")
             continue
-        path = Path(str(item.get("path", "")))
+
+        raw_path = str(item.get("path", ""))
+        path = Path(raw_path)
         name = path.name
         if name in seen:
             errors.append(f"duplicate AI-input file: {name}")
         seen.add(name)
+
+        # Index paths must resolve inside this analysis-date AI-input directory.
+        # This prevents an otherwise valid SHA256 entry from escaping the
+        # published package and pointing at an arbitrary repository file.
+        resolved_path = path.resolve()
+        try:
+            resolved_path.relative_to(resolved_ai_root)
+        except ValueError:
+            errors.append(f"AI-input path outside package: {raw_path}")
+            continue
+
         if not path.exists() or path.stat().st_size <= 2:
             errors.append(f"AI-input missing/empty: {path}")
             continue
@@ -128,21 +143,28 @@ def main() -> int:
         except Exception as exc:
             errors.append(f"invalid JSON: {path}: {exc}")
             continue
+
         expected_sha = item.get("sha256")
         actual_sha = sha256(path)
         if expected_sha != actual_sha:
             errors.append(f"SHA256 mismatch: {path}")
         if item.get("bytes") != path.stat().st_size:
             errors.append(f"byte count mismatch: {path}")
+
         if name == "twse.json":
             if item.get("source") != "TWSE":
                 errors.append("twse.json source mismatch")
+            if item.get("endpoint") != "snapshot":
+                errors.append("twse.json endpoint mismatch")
         elif name.startswith("taifex-"):
             if item.get("source") != "TAIFEX":
                 errors.append(f"TAIFEX source mismatch: {name}")
             endpoint = str(item.get("endpoint", ""))
+            expected_endpoint = name[len("taifex-") : -len(".json")]
             if endpoint not in TAIFEX_ENDPOINTS:
                 errors.append(f"unknown TAIFEX endpoint: {endpoint}")
+            elif endpoint != expected_endpoint:
+                errors.append(f"TAIFEX filename/endpoint mismatch: {name} -> {endpoint}")
 
     result = {
         "ok": not errors,
