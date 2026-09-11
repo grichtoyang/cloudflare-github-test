@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build an immutable daily TWSE snapshot from the TWSE proxy."""
+"""Build an immutable daily TWSE snapshot from the TWSE production proxy."""
 
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 DEFAULT_BASE = "https://twse-proxy.grichtoyang.workers.dev"
-LEGACY_BASE = "https://taiex-proxy.grichtoyang.workers.dev"
 REQUIRED_ENDPOINTS = ("IND", "MS")
 REQUIRED_DATA = ("taiex", "market_statistics", "advance_decline")
 
@@ -101,9 +100,6 @@ def main(argv=None) -> int:
 
     started = now_utc()
     url = args.base_url.rstrip("/")
-    if url == LEGACY_BASE:
-        print(json.dumps({"date": args.date, "ready_for_analysis": False, "error": f"legacy TWSE proxy URL is forbidden: {LEGACY_BASE}; use {DEFAULT_BASE}"}, ensure_ascii=False, indent=2), file=sys.stderr)
-        return 2
 
     try:
         payload, status, attempts = fetch_json(url, args.retries, args.timeout)
@@ -124,7 +120,7 @@ def main(argv=None) -> int:
         "source": "TWSE",
         "proxy": url,
         "collector": "twse_snapshot.py",
-        "collector_version": "1.0.0",
+        "collector_version": "1.1.0",
         "data": payload,
         "validation": {
             "required_endpoint_count": 2,
