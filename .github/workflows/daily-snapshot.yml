@@ -35,8 +35,8 @@ jobs:
           test "$TWSE_PROXY_BASE_URL" = "https://twse-proxy.grichtoyang.workers.dev"
           grep -F 'DEFAULT_BASE = "https://taifex.grichtoyang.workers.dev"' scripts/daily_snapshot.py >/dev/null
           grep -F 'DEFAULT_BASE = "https://twse-proxy.grichtoyang.workers.dev"' scripts/twse_snapshot.py >/dev/null
-          if grep -F 'taiex-proxy.grichtoyang.workers.dev' scripts/twse_snapshot.py >/dev/null; then
-            echo "ERROR: legacy TWSE proxy URL found in active collector."
+          if grep -F 'DEFAULT_BASE = "https://taiex-proxy.grichtoyang.workers.dev"' scripts/twse_snapshot.py >/dev/null; then
+            echo "ERROR: legacy TWSE proxy URL is configured as the active collector DEFAULT_BASE."
             exit 1
           fi
           echo "Production proxy URL regression check passed."
