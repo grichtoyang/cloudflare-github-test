@@ -34,7 +34,10 @@ jobs:
           set -euo pipefail
           test "$TAIFEX_PROXY_BASE_URL" = "https://taifex.grichtoyang.workers.dev"
           test "$TWSE_PROXY_BASE_URL" = "https://twse-proxy.grichtoyang.workers.dev"
-          ! grep -R "taiex-proxy.grichtoyang.workers.dev" .github scripts docs || true
+          if grep -R "taiex-proxy.grichtoyang.workers.dev" .github scripts docs; then
+            echo "Legacy TWSE proxy URL detected in production paths." >&2
+            exit 1
+          fi
 
       - name: Resolve Analysis Date
         id: analysis_date
@@ -50,12 +53,12 @@ jobs:
         shell: bash
         run: |
           set +e
-          python scripts/resolve_t0.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}"
+          output="$(python scripts/resolve_t0.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}")"
           status=$?
+          echo "$output"
           echo "status=$status" >> "$GITHUB_OUTPUT"
-          set -e
           if [ "$status" -eq 0 ]; then
-            t0="$(python scripts/resolve_t0.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}" | tail -n 1)"
+            t0="$(printf '%s\n' "$output" | tail -n 1)"
             echo "t0=$t0" >> "$GITHUB_OUTPUT"
           else
             echo "t0=" >> "$GITHUB_OUTPUT"
@@ -92,7 +95,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python scripts/build_premarket_manifest.py --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}" --t0 "${{ steps.t0.outputs.t0 }}"
+          python scripts/build_premarket_manifest.py --date "${{ steps.t0.outputs.t0 }}" --analysis-date "${{ steps.analysis_date.outputs.analysis_date }}"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           set -e
