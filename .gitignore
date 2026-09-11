@@ -3,3 +3,5 @@ node_modules/
 .dev.vars
 source/
 source.zip
+__pycache__/
+*.py[cod]
