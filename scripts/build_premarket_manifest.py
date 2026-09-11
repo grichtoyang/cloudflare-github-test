@@ -3,7 +3,7 @@
 
 The source snapshot date is T0 (the latest completed trading date), while
 ``analysis_date`` is the Taiwan calendar date on which the pre-market report
-is being produced.  These are deliberately separate concepts.
+is being produced. These are deliberately separate concepts.
 
 Only a fully validated package is published to
 ``data/premarket/<analysis_date>.json``. Failed validation is retained under
@@ -90,18 +90,20 @@ def main(argv: list[str] | None = None) -> int:
     taifex_path = root / "manifests" / f"{t0_date}.json"
     twse_path = root / "manifests" / f"{t0_date}.twse.json"
 
-    # A published package is immutable. A failed attempt is never written to
-    # this canonical path, so failed runs can always be retried.
+    # A published package is immutable. A valid existing package is an
+    # idempotent success (status 3 means "already published"). An invalid
+    # canonical artifact is a real validation failure and must not be treated
+    # as a successful rerun.
     if output.exists():
         try:
             existing = read_json(output)
         except Exception:
             existing = {}
         if existing.get("ready_for_analysis") is True and existing.get("published") is True:
-            print(json.dumps({"date": t0_date, "analysis_date": analysis_date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
+            print(json.dumps({"date": t0_date, "analysis_date": analysis_date, "ready_for_analysis": True, "immutable_publication": "blocked", "reason": "canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
             return 3
-        print(json.dumps({"date": t0_date, "analysis_date": analysis_date, "ready_for_analysis": False, "immutable_publication": "blocked", "reason": "invalid canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
-        return 3
+        print(json.dumps({"date": t0_date, "analysis_date": analysis_date, "ready_for_analysis": False, "immutable_publication": "invalid", "reason": "invalid canonical pre-market package already exists"}, ensure_ascii=False, indent=2))
+        return 1
 
     started = now_utc()
     # TAIFEX is produced with both T0 and Analysis Date because night-session
