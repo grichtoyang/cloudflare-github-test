@@ -5,6 +5,12 @@ on:
   push:
     paths:
       - ".github/workflows/daily-snapshot.yml"
+      - "scripts/daily_snapshot.py"
+      - "scripts/resolve_t0.py"
+      - "scripts/twse_snapshot.py"
+      - "scripts/build_premarket_manifest.py"
+      - "scripts/build_premarket_ai_inputs.py"
+      - "scripts/validate_premarket_ai_inputs.py"
   schedule:
     - cron: "0 0 * * 1-5"
 
