@@ -48,7 +48,8 @@ def sha256(path: Path) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser()
+    # Fail closed on CLI typos: do not silently accept abbreviated long options.
+    parser = argparse.ArgumentParser(allow_abbrev=False)
     parser.add_argument("--analysis-date", required=True)
     parser.add_argument("--t0-date", required=True)
     parser.add_argument("--output-root", default="data/premarket")
