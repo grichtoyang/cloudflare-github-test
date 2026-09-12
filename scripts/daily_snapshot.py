@@ -206,14 +206,17 @@ def main() -> int:
         for path in (stable_taifex, stable_snapshot):
             integrity_errors.extend(verify_snapshot_file(path, expected_date=args.date))
         if integrity_errors:
+            # An existing artifact is immutable only when it is a valid stable
+            # artifact.  If it is already proven invalid, remove the invalid
+            # stable set so the current run can perform a clean repair.
             print(
                 json.dumps(
                     {
                         "date": args.date,
                         "analysis_date": args.analysis_date,
                         "ready_for_analysis": False,
-                        "immutable_publication": "blocked",
-                        "reason": "existing stable artifact failed integrity validation",
+                        "immutable_publication": "repair_required",
+                        "reason": "existing stable artifact failed integrity validation; rebuilding",
                         "errors": integrity_errors,
                         "existing": [str(p) for p in existing_stable],
                     },
@@ -221,22 +224,26 @@ def main() -> int:
                     indent=2,
                 )
             )
-            return 1
-        print(
-            json.dumps(
-                {
-                    "date": args.date,
-                    "analysis_date": args.analysis_date,
-                    "ready_for_analysis": True,
-                    "immutable_publication": "blocked",
-                    "reason": "stable artifact already exists and passed integrity validation",
-                    "existing": [str(p) for p in existing_stable],
-                },
-                ensure_ascii=False,
-                indent=2,
+            for path in (stable_taifex, stable_snapshot, stable_manifest):
+                if path.exists():
+                    path.unlink()
+            print(f"Repair: removed invalid stable artifacts for T0 {args.date}")
+        else:
+            print(
+                json.dumps(
+                    {
+                        "date": args.date,
+                        "analysis_date": args.analysis_date,
+                        "ready_for_analysis": True,
+                        "immutable_publication": "blocked",
+                        "reason": "stable artifact already exists and passed integrity validation",
+                        "existing": [str(p) for p in existing_stable],
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
             )
-        )
-        return 3
+            return 3
 
     started = now_utc()
     results: dict[str, object] = {}
