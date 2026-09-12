@@ -23,6 +23,7 @@ jobs:
     env:
       TAIFEX_PROXY_BASE_URL: https://taifex.grichtoyang.workers.dev
       TWSE_PROXY_BASE_URL: https://twse-proxy.grichtoyang.workers.dev
+
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
@@ -78,6 +79,32 @@ jobs:
           echo "status=$status" >> "$GITHUB_OUTPUT"
           set -e
           exit 0
+
+      - name: Verify TWSE proxy T0 date propagation
+        id: twse_probe
+        if: steps.t0.outputs.status == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          t0_date="${{ steps.t0.outputs.t0 }}"
+          twse_query_date="${t0_date//-/}"
+          twse_url="${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
+          echo "TWSE query date: $twse_query_date"
+          echo "TWSE request URL: $twse_url"
+          curl --fail --silent --show-error --max-time 30 "$twse_url" -o /tmp/twse.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = json.loads(Path('/tmp/twse.json').read_text(encoding='utf-8'))
+          assert p.get('ok') is True, f"TWSE proxy ok != true: {p}"
+          assert p.get('date') == '2026-09-11', f"TWSE proxy date mismatch: {p.get('date')}"
+          data = p.get('data') or {}
+          for key in ('taiex', 'market_statistics', 'advance_decline'):
+              assert data.get(key) is not None, f"TWSE proxy data.{key} is null"
+          print('TWSE T0 proxy smoke test: PASS')
+          print(f"TWSE proxy date: {p.get('date')}")
+          print('TWSE core data: taiex/market_statistics/advance_decline = non-null')
+          PY
 
       - name: Build TWSE snapshot
         id: twse
@@ -140,6 +167,7 @@ jobs:
           set -euo pipefail
           t0_status="${{ steps.t0.outputs.status }}"
           taifex_status="${{ steps.taifex.outputs.status }}"
+          twse_probe_outcome="${{ steps.twse_probe.outcome }}"
           twse_status="${{ steps.twse.outputs.status }}"
           canonical_status="${{ steps.canonical.outputs.status }}"
           aiinput_status="${{ steps.aiinput.outputs.status }}"
@@ -150,6 +178,7 @@ jobs:
           echo "T0: ${{ steps.t0.outputs.t0 }}"
           echo "T0 status: $t0_status"
           echo "TAIFEX status: $taifex_status"
+          echo "TWSE probe outcome: $twse_probe_outcome"
           echo "TWSE status: $twse_status"
           echo "Canonical status: $canonical_status"
           echo "AI-input status: $aiinput_status"
@@ -158,6 +187,7 @@ jobs:
 
           test "$t0_status" = "0"
           test "$taifex_status" = "0" -o "$taifex_status" = "3"
+          test "$twse_probe_outcome" = "success"
           test "$twse_status" = "0" -o "$twse_status" = "3"
           test "$canonical_status" = "0" -o "$canonical_status" = "3"
           test "$aiinput_status" = "0" -o "$aiinput_status" = "3"
