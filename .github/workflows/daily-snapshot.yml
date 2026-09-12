@@ -85,7 +85,12 @@ jobs:
         shell: bash
         run: |
           set +e
-          python scripts/twse_snapshot.py --date "${{ steps.t0.outputs.t0 }}"
+          t0_date="${{ steps.t0.outputs.t0 }}"
+          twse_query_date="${t0_date//-/}"
+          twse_url="${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
+          echo "TWSE query date: $twse_query_date"
+          echo "TWSE request URL: ${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
+          python scripts/twse_snapshot.py --date "$t0_date" --base-url "$twse_url"
           status=$?
           echo "status=$status" >> "$GITHUB_OUTPUT"
           set -e
