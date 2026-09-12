@@ -103,21 +103,11 @@ def main() -> int:
     index_path = out_dir / "index.json"
 
     if existing_is_valid(index_path, canonical_sha, out_dir):
-        print(json.dumps({
-            "ok": True,
-            "status": 3,
-            "analysis_date": args.analysis_date,
-            "t0_trading_date": args.t0_date,
-            "output_dir": str(out_dir),
-            "index": str(index_path),
-            "reason": "AI input package already exists and passed integrity validation",
-        }, ensure_ascii=False, indent=2))
+        print(json.dumps({"ok": True, "status": 3, "analysis_date": args.analysis_date, "t0_trading_date": args.t0_date, "output_dir": str(out_dir), "index": str(index_path), "reason": "AI input package already exists and passed integrity validation"}, ensure_ascii=False, indent=2))
         return 3
 
     files: list[dict[str, object]] = []
 
-    # TAIFEX: one compact JSON per endpoint. This preserves every endpoint's
-    # payload while avoiding one oversized connector response.
     taifex_ref = sources.get("TAIFEX", {}).get("snapshot")
     if not taifex_ref:
         print("TAIFEX snapshot reference missing", file=sys.stderr)
@@ -136,18 +126,10 @@ def main() -> int:
         return 1
 
     for endpoint, payload in taifex_data.items():
-        filename = f"taifex-{safe_name(str(endpoint))}.json"
-        target = out_dir / filename
+        target = out_dir / f"taifex-{safe_name(str(endpoint))}.json"
         digest = write_compact(target, payload)
-        files.append({
-            "source": "TAIFEX",
-            "endpoint": endpoint,
-            "path": str(target),
-            "bytes": target.stat().st_size,
-            "sha256": digest,
-        })
+        files.append({"source": "TAIFEX", "endpoint": endpoint, "path": str(target), "bytes": target.stat().st_size, "sha256": digest})
 
-    # TWSE is already small enough to remain one connector-friendly file.
     twse_ref = sources.get("TWSE", {}).get("snapshot")
     if not twse_ref:
         print("TWSE snapshot reference missing", file=sys.stderr)
@@ -160,41 +142,29 @@ def main() -> int:
     if twse.get("validation", {}).get("ready_for_analysis") is not True:
         print("TWSE snapshot is not ready", file=sys.stderr)
         return 1
+    twse_data = twse.get("data")
+    if not isinstance(twse_data, dict):
+        print("TWSE payload missing", file=sys.stderr)
+        return 1
+    # The TWSE snapshot wraps the proxy/fallback payload under data.data.
+    # Reject legacy snapshots that claim readiness while all normalized core
+    # fields are null; otherwise a false READY package reaches the analyst.
+    normalized = twse_data.get("data")
+    if not isinstance(normalized, dict):
+        print("TWSE normalized data missing", file=sys.stderr)
+        return 1
+    required = ("taiex", "market_statistics", "advance_decline")
+    missing = [key for key in required if normalized.get(key) is None]
+    if missing:
+        print(f"TWSE normalized core data missing: {', '.join(missing)}", file=sys.stderr)
+        return 1
     target = out_dir / "twse.json"
-    digest = write_compact(target, twse.get("data"))
-    files.append({
-        "source": "TWSE",
-        "endpoint": "snapshot",
-        "path": str(target),
-        "bytes": target.stat().st_size,
-        "sha256": digest,
-    })
+    digest = write_compact(target, twse_data)
+    files.append({"source": "TWSE", "endpoint": "snapshot", "path": str(target), "bytes": target.stat().st_size, "sha256": digest})
 
-    index = {
-        "version": "1.0.0",
-        "type": "premarket-ai-input-index",
-        "analysis_date": args.analysis_date,
-        "t0_trading_date": args.t0_date,
-        "created_at": now_utc(),
-        "canonical_package": str(canonical_path),
-        "canonical_package_sha256": canonical_sha,
-        "source_of_truth": {
-            "TAIFEX_snapshot": str(taifex_path),
-            "TWSE_snapshot": str(twse_path),
-        },
-        "files": files,
-    }
+    index = {"version": "1.0.0", "type": "premarket-ai-input-index", "analysis_date": args.analysis_date, "t0_trading_date": args.t0_date, "created_at": now_utc(), "canonical_package": str(canonical_path), "canonical_package_sha256": canonical_sha, "source_of_truth": {"TAIFEX_snapshot": str(taifex_path), "TWSE_snapshot": str(twse_path)}, "files": files}
     write_compact(index_path, index)
-
-    print(json.dumps({
-        "ok": True,
-        "status": 0,
-        "analysis_date": args.analysis_date,
-        "t0_trading_date": args.t0_date,
-        "output_dir": str(out_dir),
-        "file_count": len(files),
-        "index": str(index_path),
-    }, ensure_ascii=False, indent=2))
+    print(json.dumps({"ok": True, "status": 0, "analysis_date": args.analysis_date, "t0_trading_date": args.t0_date, "output_dir": str(out_dir), "file_count": len(files), "index": str(index_path)}, ensure_ascii=False, indent=2))
     return 0
 
 
