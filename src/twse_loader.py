@@ -8,6 +8,9 @@ GITHUB_RAW_BASE = (
 )
 
 
+REQUIRED_DATA = ("taiex", "market_statistics", "advance_decline")
+
+
 def load_json(url: str) -> dict:
     """Load JSON from a URL."""
     with urlopen(url, timeout=15) as response:
@@ -41,9 +44,11 @@ def load_twse(date: str) -> dict:
     data = wrapper.get("data")
     if not isinstance(data, dict):
         raise ValueError("TWSE data is missing")
-    for key in ("taiex", "market_statistics", "advance_decline"):
+    for key in REQUIRED_DATA:
         if key not in data:
             raise ValueError(f"TWSE data.{key} is missing")
+        if data.get(key) is None:
+            raise ValueError(f"TWSE data.{key} is null")
 
     return wrapper
 
@@ -51,6 +56,6 @@ def load_twse(date: str) -> dict:
 if __name__ == "__main__":
     TEST_DATE = "2026-09-09"
     data = load_twse(TEST_DATE)
-    print("TWSE Loader V1.2: PASS")
+    print("TWSE Loader V1.3: PASS")
     print(f"Date: {data['date']}")
     print(f"TAIEX close: {data['data']['taiex']['close']}")
