@@ -84,20 +84,23 @@ jobs:
         id: twse_probe
         if: steps.t0.outputs.status == '0'
         shell: bash
+        env:
+          T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
-          t0_date="${{ steps.t0.outputs.t0 }}"
-          twse_query_date="${t0_date//-/}"
+          twse_query_date="${T0_DATE//-/}"
           twse_url="${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
           echo "TWSE query date: $twse_query_date"
           echo "TWSE request URL: $twse_url"
           curl --fail --silent --show-error --max-time 30 "$twse_url" -o /tmp/twse.json
           python - <<'PY'
           import json
+          import os
           from pathlib import Path
+          expected_date = os.environ["T0_DATE"]
           p = json.loads(Path('/tmp/twse.json').read_text(encoding='utf-8'))
           assert p.get('ok') is True, f"TWSE proxy ok != true: {p}"
-          assert p.get('date') == '2026-09-11', f"TWSE proxy date mismatch: {p.get('date')}"
+          assert p.get('date') == expected_date, f"TWSE proxy date mismatch: expected {expected_date}, got {p.get('date')}"
           data = p.get('data') or {}
           for key in ('taiex', 'market_statistics', 'advance_decline'):
               assert data.get(key) is not None, f"TWSE proxy data.{key} is null"
