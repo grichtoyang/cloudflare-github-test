@@ -68,7 +68,7 @@ jobs:
       #   15:00 exclusive
       #
       # Not allowed:
-      #   15:00–隔日 05:00
+      #   15:00–隔日 04:59
       # ============================================================
       - name: Resolve Taiwan runtime session
         id: session
@@ -81,7 +81,9 @@ jobs:
           runtime_hour="$(TZ=Asia/Taipei date '+%H')"
           runtime_minute="$(TZ=Asia/Taipei date '+%M')"
 
-          runtime_minutes=$((10#${runtime_hour} * 60 + 10#${runtime_minute}))
+          runtime_minutes=$(
+            10#${runtime_hour} * 60 + 10#${runtime_minute}
+          )
 
           if [ "${runtime_minutes}" -ge 300 ] \
             && [ "${runtime_minutes}" -lt 900 ]; then
@@ -154,15 +156,8 @@ jobs:
       # ============================================================
       # 7. Resolve T0 trading date
       #
-      # IMPORTANT:
-      # resolve_t0.py currently:
-      #   - does not accept --analysis-date
-      #   - prints the resolved T0 date to stdout
-      #
-      # Therefore:
-      #   t0_date="$(python scripts/resolve_t0.py)"
-      #
-      # Then explicitly write it to GITHUB_OUTPUT.
+      # resolve_t0.py 目前輸出 T0 到 stdout，
+      # 因此必須將 stdout 寫入 GITHUB_OUTPUT。
       # ============================================================
       - name: Resolve T0 trading date
         id: t0
@@ -193,7 +188,6 @@ jobs:
 
           echo "Resolved T0 date: ${t0_date}"
 
-          # 本次修正的核心
           echo "t0=${t0_date}" >> "${GITHUB_OUTPUT}"
 
           {
@@ -205,6 +199,11 @@ jobs:
 
       # ============================================================
       # 8. Build TAIFEX snapshot
+      #
+      # Exit code:
+      #   0 = 新資料建立成功
+      #   3 = 既有 immutable 資料完整，不覆蓋，視為成功
+      #   其他 = 真正錯誤
       # ============================================================
       - name: Build TAIFEX snapshot
         id: taifex
@@ -234,10 +233,26 @@ jobs:
           echo "Analysis Date: ${ANALYSIS_DATE}"
           echo "T0 Date: ${T0_DATE}"
 
+          set +e
+
           python scripts/daily_snapshot.py \
             --date "${T0_DATE}" \
             --analysis-date "${ANALYSIS_DATE}" \
             --base-url "${TAIFEX_PROXY_BASE_URL}"
+
+          rc=$?
+
+          set -e
+
+          if [ "${rc}" -eq 0 ]; then
+            echo "TAIFEX snapshot created successfully."
+          elif [ "${rc}" -eq 3 ]; then
+            echo "TAIFEX snapshot already exists and passed integrity validation."
+            echo "Immutable artifact preserved. No overwrite performed."
+          else
+            echo "ERROR: TAIFEX snapshot failed with exit code ${rc}."
+            exit "${rc}"
+          fi
 
       # ============================================================
       # 9. Verify TWSE Proxy T0 date propagation
@@ -314,6 +329,8 @@ jobs:
 
       # ============================================================
       # 10. Build TWSE snapshot
+      #
+      # Exit code 3 = 既有 immutable 資料完整，視為成功
       # ============================================================
       - name: Build TWSE snapshot
         id: twse
@@ -336,12 +353,30 @@ jobs:
           echo "TWSE query date: ${twse_query_date}"
           echo "TWSE request URL: ${twse_url}"
 
+          set +e
+
           python scripts/twse_snapshot.py \
             --date "${T0_DATE}" \
             --base-url "${twse_url}"
 
+          rc=$?
+
+          set -e
+
+          if [ "${rc}" -eq 0 ]; then
+            echo "TWSE snapshot created successfully."
+          elif [ "${rc}" -eq 3 ]; then
+            echo "TWSE snapshot already exists and passed integrity validation."
+            echo "Immutable artifact preserved. No overwrite performed."
+          else
+            echo "ERROR: TWSE snapshot failed with exit code ${rc}."
+            exit "${rc}"
+          fi
+
       # ============================================================
       # 11. Build premarket manifest
+      #
+      # Exit code 3 = 既有 immutable manifest 完整，視為成功
       # ============================================================
       - name: Build premarket manifest
         id: manifest
@@ -353,12 +388,30 @@ jobs:
         run: |
           set -euo pipefail
 
+          set +e
+
           python scripts/build_premarket_manifest.py \
             --analysis-date "${ANALYSIS_DATE}" \
             --t0 "${T0_DATE}"
 
+          rc=$?
+
+          set -e
+
+          if [ "${rc}" -eq 0 ]; then
+            echo "Premarket manifest created successfully."
+          elif [ "${rc}" -eq 3 ]; then
+            echo "Premarket manifest already exists and passed integrity validation."
+            echo "Immutable artifact preserved. No overwrite performed."
+          else
+            echo "ERROR: Premarket manifest failed with exit code ${rc}."
+            exit "${rc}"
+          fi
+
       # ============================================================
       # 12. Build premarket AI inputs
+      #
+      # Exit code 3 = 既有 immutable AI inputs 完整，視為成功
       # ============================================================
       - name: Build premarket AI inputs
         id: ai_inputs
@@ -370,9 +423,25 @@ jobs:
         run: |
           set -euo pipefail
 
+          set +e
+
           python scripts/build_premarket_ai_inputs.py \
             --analysis-date "${ANALYSIS_DATE}" \
             --t0 "${T0_DATE}"
+
+          rc=$?
+
+          set -e
+
+          if [ "${rc}" -eq 0 ]; then
+            echo "Premarket AI inputs created successfully."
+          elif [ "${rc}" -eq 3 ]; then
+            echo "Premarket AI inputs already exist and passed integrity validation."
+            echo "Immutable artifact preserved. No overwrite performed."
+          else
+            echo "ERROR: Premarket AI inputs failed with exit code ${rc}."
+            exit "${rc}"
+          fi
 
       # ============================================================
       # 13. Validate AI inputs
