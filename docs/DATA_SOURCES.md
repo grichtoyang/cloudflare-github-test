@@ -1,59 +1,126 @@
 # 每日盤前分析 V1.0 — 資料來源規格
 
-**文件狀態：定案版**  
+**文件狀態：審閱版（待確認）**  
 **時區：Asia/Taipei**
 
 ## 1. 資料來源優先級
 
 所有資料依下列順序取得：
 
-1. 官方 Open API
-2. 已驗證官方 Proxy
-3. 備援 API／Proxy
-4. 主要網站資料擷取
-5. 備援網站資料擷取
-6. 最近一次有效資料
-7. `missing`
+1. GitHub Actions 透過已驗證的 Cloudflare Worker Proxy
+2. 官方 Open API
+3. 其他可合法擷取的財經網站／新聞網站
+4. 最近一次有效資料
+5. `missing`
 
-只有在較高優先級來源無法取得、格式錯誤、日期不符、資料過期或驗證失敗時，才可使用下一層來源。每次跳級都必須記錄原因。
+只有在較高優先級來源無法取得、格式錯誤、日期不符、資料過期、資料不完整或驗證失敗時，才可使用下一層來源。每次跳級都必須記錄原因。
 
-## 2. 主要資料來源
+## 2. 主要資料來源：Cloudflare Worker Proxy
 
-### 2.1 TAIFEX
+GitHub Actions 為每日盤前分析的執行端，主要透過以下兩個 Cloudflare Worker Proxy 取得資料。
 
-用途：台指期行情、三大法人未平倉量、選擇權鏈、法人部位、關鍵價位、Gamma、Call Wall、Put Wall、Gamma Flip、Max Pain，以及歷史比較。
+### 2.1 TAIFEX Proxy
 
-主要 Proxy：
+Base URL：
 
-`https://taifex.grichtoyang.workers.dev/`
+`https://taifex.grichtoyang.workers.dev`
 
-使用前必須確認 HTTP 回應、格式、資料日期、必要欄位、數值單位及非空內容。
+用途包括：
 
-### 2.2 TWSE／TAIEX
+- 台指期行情
+- 台指期三大法人資料
+- 台指期未平倉量
+- 選擇權鏈
+- 選擇權法人籌碼
+- Call Wall
+- Put Wall
+- Gamma Wall
+- Gamma Flip
+- Max Pain
+- 期貨與選擇權歷史比較
 
-用途：加權指數、成交量、三大法人買賣超、融資融券、借券及現貨市場資料。
+### 2.2 TWSE Proxy
 
-優先使用官方資料或已驗證 Proxy；失敗時依固定 Fallback 順序處理並記錄。
+Base URL：
 
-### 2.3 全球市場
+`https://twse-proxy.grichtoyang.workers.dev/`
 
-可包含 S&P 500、Nasdaq、Dow Jones、SOX、美債 2Y／10Y／20Y／30Y、美元指數、USD/TWD、USD/JPY、Nikkei、韓國主要指數及 BTC。
+用途包括：
 
-每項資料必須記錄市場日期、資料時間、來源、是否延遲及資料狀態。
+- 加權指數
+- 現貨行情
+- 成交量
+- 三大法人買賣超
+- 融資融券
+- 借券資料
+- 其他 TWSE／TAIEX 相關資料
 
-### 2.4 財經與產業新聞
+### 2.3 Proxy 使用前驗證
 
-新聞至少記錄標題、來源、發布時間、事件摘要、可能影響及影響判斷的限制；不得只列標題。
+每個 Proxy endpoint 使用前必須確認：
 
-## 3. 來源角色與資料狀態
+- HTTP 回應正常
+- 回應格式可解析
+- 資料日期正確
+- 必要欄位存在
+- 資料非空
+- 數值與單位正確
+- 資料時間合理
 
-來源角色：
+## 3. 第一層備援：官方 Open API
 
-- `primary`：主要來源
-- `fallback`：替代來源
+當主要 Proxy 無法取得有效資料時，依下列官方 Open API 進行備援。
+
+### 3.1 TAIFEX 官方 Open API
+
+`https://openapi.taifex.com.tw/`
+
+### 3.2 TWSE 官方 Open API
+
+`https://openapi.twse.com.tw/`
+
+官方 Open API 仍須執行完整的 HTTP、格式、日期、欄位、數值、時間及資料完整性驗證。
+
+## 4. 第二層備援：其他可爬蟲擷取的網站
+
+當 Cloudflare Proxy 與官方 Open API 都無法取得有效資料時，才可使用其他可合法擷取的財經網站或新聞網站。
+
+可納入的網站類型包括：
+
+- Yahoo 股市／Yahoo Finance
+- MoneyDJ
+- Goodinfo!
+- 財報狗
+- HiStock 嗨投資
+- 鉅亨網
+- 經濟日報
+- 工商時報
+- Reuters
+- CNBC
+- Trading Economics
+- MarketWatch
+
+實際使用的網站必須記錄來源、網址、擷取時間、資料日期、資料狀態及擷取限制。網站資料不得標示為官方即時資料。
+
+## 5. 最後備援
+
+若上述來源皆無法取得有效資料，依序使用：
+
+1. 最近一次有效資料，並標示 `last_valid`／`stale`
+2. `missing`
+
+`missing` 不得補成 `0`，也不得自行虛構或推算成實際資料。
+
+## 6. 來源角色與資料狀態
+
+來源角色 `source_role`：
+
+- `primary`：主要 Proxy 來源
+- `official_api_fallback`：官方 Open API 備援
+- `web_scraping_fallback`：網站爬蟲備援
 - `last_valid`：最近一次有效資料
 
-資料狀態：
+資料狀態 `data_status`：
 
 - `fresh`
 - `delayed`
@@ -65,26 +132,26 @@
 - `fallback`
 - `insufficient_data`
 
-`fallback` 是資料來源切換後的明確狀態；`stale` 表示資料過期。兩者可同時成立，並須保留原始資料日期。
+`source_role` 與 `data_status` 是不同欄位。使用備援來源時，必須同時記錄來源角色與實際資料狀態；例如官方 API 備援取得的過期資料，可標示為 `official_api_fallback` + `stale`。
 
-## 4. 資料驗證
+## 7. 資料驗證
 
 每次取得資料後，必須檢查：
 
 1. HTTP 狀態
 2. 預期回應格式
 3. JSON／CSV／文字是否可解析
-4. 必要欄位
+4. 必要欄位是否存在
 5. 是否為空
-6. 資料日期
-7. 資料時間
-8. 數值有效性
-9. 單位與欄位意義
-10. 延遲、過期或部分資料狀態
+6. 資料日期是否符合執行日期
+7. 資料時間是否合理
+8. 數值是否為有效數字
+9. 單位與欄位意義是否正確
+10. 是否延遲、過期或部分資料
 
 驗證失敗時不得直接進入分析，必須記錄錯誤並啟用下一層來源。
 
-## 5. 原始資料保存
+## 8. 原始資料保存
 
 原始資料不可覆寫。每筆原始資料至少保存：
 
@@ -98,47 +165,71 @@
 - `data_date`
 - `data_timestamp`
 - `data_status`
+- `fallback_reason`
 - `error_code`
 - `validation_errors`
 
-正規化資料及分析結果須另行保存。
+正規化資料及分析結果須另行保存，不得取代原始資料。
 
-## 6. 歷史比較
+## 9. 歷史比較
 
-比較前次資料時，必須確認比較日期、時間、資料定義、單位、來源及缺值狀況一致。無法建立有效比較時，標示 `insufficient_data`，不得自行推算。
+比較前次資料時，必須確認：
 
-## 7. 選擇權資料規則
+- 比較基準日期
+- 比較基準時間
+- 資料定義一致
+- 單位一致
+- 來源可追溯
+- 是否存在缺值、延遲或過期資料
 
-資料必須區分近月、當週、到期月份、Call／Put、外資、造市商、OI、成交量、價格及 Gamma 資料。
+若無法建立有效比較，必須標示 `insufficient_data`，不得自行推算。
 
-Call Wall、Put Wall、Gamma Wall、Gamma Flip、Max Pain 只是市場結構參考，不能單獨產生交易訊號，必須結合價格行為、成交量、未平倉量及市場狀態。
+## 10. 選擇權資料規則
 
-## 8. 來源失敗處理
+選擇權資料必須區分：
+
+- 近月
+- 當週
+- 到期月份
+- Call／Put
+- 外資
+- 造市商
+- OI
+- 成交量
+- 價格
+- Gamma 相關資料
+
+Call Wall、Put Wall、Gamma Wall、Gamma Flip、Max Pain 僅是市場結構參考，不能單獨產生交易訊號，必須結合價格行為、成交量、未平倉量及市場狀態。
+
+## 11. 來源失敗與 Fallback 處理
 
 來源失敗時必須：
 
-1. 記錄錯誤。
-2. 記錄失敗來源及原因。
-3. 依固定 Fallback 順序繼續。
-4. 標示資料狀態。
-5. 將影響傳遞至分析、報告及 Dashboard。
-6. 不得因單一來源失敗而停止整體流程。
+1. 記錄失敗來源。
+2. 記錄 HTTP 狀態或錯誤訊息。
+3. 記錄具體失敗原因。
+4. 依固定 Fallback 順序繼續。
+5. 記錄切換後的來源。
+6. 標示資料狀態。
+7. 將資料品質與限制傳遞至分析、報告及 Dashboard。
+8. 不得因單一來源失敗而停止整體流程。
 
-## 9. 資料誠信與禁止事項
+## 12. 資料誠信與禁止事項
 
 不得：
 
 - 虛構來源或資料。
 - 將缺失資料補成 `0`。
-- 將估算值當實際值。
-- 將推測當事實。
+- 將估算值當成實際值。
+- 將推測當成事實。
 - 將延遲資料標示為即時。
 - 隱藏來源切換或 Fallback。
 - 省略資料日期與時間。
 - 以單一選擇權價位判定必然漲跌。
 - 使用未驗證資料作為確定結論。
+- 未記錄原因就跳過較高優先級來源。
 
-## 10. 最低交付要求
+## 13. 最低交付要求
 
 資料層至少提供：
 
@@ -147,6 +238,7 @@ Call Wall、Put Wall、Gamma Wall、Gamma Flip、Max Pain 只是市場結構參�
 - 資料驗證結果
 - 來源狀態
 - Fallback 狀態
+- Fallback 原因
 - 資料品質總覽
 - 缺失欄位
 - 錯誤清單
