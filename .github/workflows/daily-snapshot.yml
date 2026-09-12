@@ -24,7 +24,6 @@ jobs:
   daily-snapshot:
     name: Daily Premarket Snapshot
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -50,15 +49,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           runtime_date="$(TZ=Asia/Taipei date '+%Y-%m-%d')"
           runtime_time="$(TZ=Asia/Taipei date '+%H:%M:%S')"
           runtime_hour="$(TZ=Asia/Taipei date '+%H')"
           runtime_minute="$(TZ=Asia/Taipei date '+%M')"
-
-          # Correct Bash arithmetic syntax; 10# prevents 08/09 octal errors.
           runtime_minutes=$((10#$runtime_hour * 60 + 10#$runtime_minute))
-
           if (( runtime_minutes >= 300 && runtime_minutes < 900 )); then
             session_allowed="true"
             session_state="PREMARKET_ALLOWED"
@@ -66,7 +61,6 @@ jobs:
             session_allowed="false"
             session_state="OUTSIDE_PREMARKET_WINDOW"
           fi
-
           {
             echo "runtime_date=${runtime_date}"
             echo "runtime_time=${runtime_time}"
@@ -74,7 +68,6 @@ jobs:
             echo "session_allowed=${session_allowed}"
             echo "session_state=${session_state}"
           } >> "${GITHUB_OUTPUT}"
-
           echo "Taiwan runtime date: ${runtime_date}"
           echo "Taiwan runtime time: ${runtime_time}"
           echo "Taiwan runtime minutes: ${runtime_minutes}"
@@ -140,10 +133,7 @@ jobs:
           echo "Analysis Date: ${ANALYSIS_DATE}"
           echo "T0 Date: ${T0_DATE}"
           set +e
-          python scripts/daily_snapshot.py \
-            --date "${T0_DATE}" \
-            --analysis-date "${ANALYSIS_DATE}" \
-            --base-url "${TAIFEX_PROXY_BASE_URL}"
+          python scripts/daily_snapshot.py --date "${T0_DATE}" --analysis-date "${ANALYSIS_DATE}" --base-url "${TAIFEX_PROXY_BASE_URL}"
           rc=$?
           set -e
           if [ "${rc}" -eq 0 ]; then
@@ -195,9 +185,7 @@ jobs:
           twse_query_date="${T0_DATE//-/}"
           twse_url="${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
           set +e
-          python scripts/twse_snapshot.py \
-            --date "${T0_DATE}" \
-            --base-url "${twse_url}"
+          python scripts/twse_snapshot.py --date "${T0_DATE}" --base-url "${twse_url}"
           rc=$?
           set -e
           if [ "${rc}" -eq 0 ]; then
@@ -220,9 +208,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          python scripts/build_premarket_manifest.py \
-            --analysis-date "${ANALYSIS_DATE}" \
-            --t0 "${T0_DATE}"
+          python scripts/build_premarket_manifest.py --date "${T0_DATE}" --analysis-date "${ANALYSIS_DATE}"
           rc=$?
           set -e
           if [ "${rc}" -eq 0 ]; then
@@ -244,9 +230,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          python scripts/build_premarket_ai_inputs.py \
-            --analysis-date "${ANALYSIS_DATE}" \
-            --t0 "${T0_DATE}"
+          python scripts/build_premarket_ai_inputs.py --analysis-date "${ANALYSIS_DATE}" --t0-date "${T0_DATE}"
           rc=$?
           set -e
           if [ "${rc}" -eq 0 ]; then
