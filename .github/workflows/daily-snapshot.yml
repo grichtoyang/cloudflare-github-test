@@ -246,9 +246,12 @@ jobs:
         id: validator
         if: steps.session.outputs.session_allowed == 'true'
         shell: bash
+        env:
+          ANALYSIS_DATE: ${{ steps.analysis_date.outputs.analysis_date }}
+          T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
-          python scripts/validate_premarket_ai_inputs.py
+          python scripts/validate_premarket_ai_inputs.py --analysis-date "${ANALYSIS_DATE}" --t0-date "${T0_DATE}"
 
       - name: READY_FOR_ANALYSIS gate
         id: ready_gate
