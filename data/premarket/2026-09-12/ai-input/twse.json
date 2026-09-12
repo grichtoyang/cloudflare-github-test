@@ -1,0 +1,1 @@
+{"ok":true,"source":"TWSE","proxy":"twse-proxy","version":"1.0.0","date":"2026-09-11","endpoints":{"IND":{"status":200,"fetch_ok":true},"MS":{"status":200,"fetch_ok":true}},"data":{"taiex":null,"market_statistics":null,"advance_decline":null}}
