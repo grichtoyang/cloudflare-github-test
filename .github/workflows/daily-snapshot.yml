@@ -30,25 +30,25 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # ------------------------------------------------------------
-      # 1. Checkout
-      # ------------------------------------------------------------
+      # ============================================================
+      # 1. Checkout repository
+      # ============================================================
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # ------------------------------------------------------------
-      # 2. Python
-      # ------------------------------------------------------------
+      # ============================================================
+      # 2. Set up Python
+      # ============================================================
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      # ------------------------------------------------------------
-      # 3. Verify proxy URLs
-      # ------------------------------------------------------------
+      # ============================================================
+      # 3. Verify proxy configuration
+      # ============================================================
       - name: Verify proxy configuration
         shell: bash
         run: |
@@ -60,16 +60,16 @@ jobs:
           echo "TAIFEX proxy: ${TAIFEX_PROXY_BASE_URL}"
           echo "TWSE proxy: ${TWSE_PROXY_BASE_URL}"
 
-      # ------------------------------------------------------------
+      # ============================================================
       # 4. Resolve Taiwan runtime session
       #
-      # Allowed execution window:
+      # Allowed:
       #   05:00 inclusive
       #   15:00 exclusive
       #
-      # 15:00–05:00:
-      #   No formal premarket snapshot is generated.
-      # ------------------------------------------------------------
+      # Not allowed:
+      #   15:00–隔日 05:00
+      # ============================================================
       - name: Resolve Taiwan runtime session
         id: session
         shell: bash
@@ -83,9 +83,8 @@ jobs:
 
           runtime_minutes=$((10#${runtime_hour} * 60 + 10#${runtime_minute}))
 
-          # 05:00 inclusive = 300 minutes
-          # 15:00 exclusive = 900 minutes
-          if [ "${runtime_minutes}" -ge 300 ] && [ "${runtime_minutes}" -lt 900 ]; then
+          if [ "${runtime_minutes}" -ge 300 ] \
+            && [ "${runtime_minutes}" -lt 900 ]; then
             session_allowed="true"
             session_state="PREMARKET_ALLOWED"
           else
@@ -105,12 +104,9 @@ jobs:
           echo "Session state: ${session_state}"
           echo "Session allowed: ${session_allowed}"
 
-      # ------------------------------------------------------------
-      # 5. Stop safely when outside the premarket window
-      #
-      # This step does not fail the workflow.
-      # It only records that no formal snapshot should be generated.
-      # ------------------------------------------------------------
+      # ============================================================
+      # 5. Handle execution outside premarket window
+      # ============================================================
       - name: Handle outside premarket window
         if: steps.session.outputs.session_allowed != 'true'
         shell: bash
@@ -125,14 +121,19 @@ jobs:
           echo "No commit will be created."
           echo "============================================================"
 
-          echo "READY_FOR_ANALYSIS=false" >> "${GITHUB_STEP_SUMMARY}"
-          echo "SESSION_STATE=${{ steps.session.outputs.session_state }}" >> "${GITHUB_STEP_SUMMARY}"
-          echo "RUNTIME_DATE=${{ steps.session.outputs.runtime_date }}" >> "${GITHUB_STEP_SUMMARY}"
-          echo "RUNTIME_TIME=${{ steps.session.outputs.runtime_time }}" >> "${GITHUB_STEP_SUMMARY}"
+          {
+            echo "## READY_FOR_ANALYSIS"
+            echo ""
+            echo "**READY_FOR_ANALYSIS=false**"
+            echo ""
+            echo "SESSION_STATE=${{ steps.session.outputs.session_state }}"
+            echo "RUNTIME_DATE=${{ steps.session.outputs.runtime_date }}"
+            echo "RUNTIME_TIME=${{ steps.session.outputs.runtime_time }}"
+          } >> "${GITHUB_STEP_SUMMARY}"
 
-      # ------------------------------------------------------------
+      # ============================================================
       # 6. Resolve Analysis Date
-      # ------------------------------------------------------------
+      # ============================================================
       - name: Resolve analysis date
         id: analysis_date
         if: steps.session.outputs.session_allowed == 'true'
@@ -142,12 +143,27 @@ jobs:
 
           analysis_date="${{ steps.session.outputs.runtime_date }}"
 
+          if ! [[ "${analysis_date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "ERROR: Invalid Analysis Date: ${analysis_date}"
+            exit 1
+          fi
+
           echo "analysis_date=${analysis_date}" >> "${GITHUB_OUTPUT}"
           echo "Analysis Date: ${analysis_date}"
 
-      # ------------------------------------------------------------
-      # 7. Resolve T0
-      # ------------------------------------------------------------
+      # ============================================================
+      # 7. Resolve T0 trading date
+      #
+      # IMPORTANT:
+      # resolve_t0.py currently:
+      #   - does not accept --analysis-date
+      #   - prints the resolved T0 date to stdout
+      #
+      # Therefore:
+      #   t0_date="$(python scripts/resolve_t0.py)"
+      #
+      # Then explicitly write it to GITHUB_OUTPUT.
+      # ============================================================
       - name: Resolve T0 trading date
         id: t0
         if: steps.session.outputs.session_allowed == 'true'
@@ -159,16 +175,37 @@ jobs:
 
           echo "Resolving T0 from Analysis Date: ${analysis_date}"
 
-          python scripts/resolve_t0.py \
-            --analysis-date "${analysis_date}"
+          t0_date="$(
+            python scripts/resolve_t0.py
+          )"
 
-      # ------------------------------------------------------------
+          t0_date="$(printf '%s' "${t0_date}" | tr -d '[:space:]')"
+
+          if [ -z "${t0_date}" ]; then
+            echo "ERROR: T0 date is empty."
+            exit 1
+          fi
+
+          if ! [[ "${t0_date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "ERROR: Invalid T0 date: ${t0_date}"
+            exit 1
+          fi
+
+          echo "Resolved T0 date: ${t0_date}"
+
+          # 本次修正的核心
+          echo "t0=${t0_date}" >> "${GITHUB_OUTPUT}"
+
+          {
+            echo "## Date Resolution"
+            echo ""
+            echo "Analysis Date: ${analysis_date}"
+            echo "T0 Date: ${t0_date}"
+          } >> "${GITHUB_STEP_SUMMARY}"
+
+      # ============================================================
       # 8. Build TAIFEX snapshot
-      #
-      # daily_snapshot.py is responsible for:
-      #   - date-required endpoints -> T0
-      #   - night-session endpoints -> Analysis Date
-      # ------------------------------------------------------------
+      # ============================================================
       - name: Build TAIFEX snapshot
         id: taifex
         if: steps.session.outputs.session_allowed == 'true'
@@ -179,6 +216,21 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [ -z "${T0_DATE}" ]; then
+            echo "ERROR: T0_DATE is empty."
+            exit 1
+          fi
+
+          if ! [[ "${T0_DATE}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]; then
+            echo "ERROR: Invalid T0_DATE: ${T0_DATE}"
+            exit 1
+          fi
+
+          if [ -z "${ANALYSIS_DATE}" ]; then
+            echo "ERROR: ANALYSIS_DATE is empty."
+            exit 1
+          fi
+
           echo "Analysis Date: ${ANALYSIS_DATE}"
           echo "T0 Date: ${T0_DATE}"
 
@@ -187,14 +239,9 @@ jobs:
             --analysis-date "${ANALYSIS_DATE}" \
             --base-url "${TAIFEX_PROXY_BASE_URL}"
 
-      # ------------------------------------------------------------
+      # ============================================================
       # 9. Verify TWSE Proxy T0 date propagation
-      #
-      # TWSE Proxy requires:
-      #   ?date=YYYYMMDD
-      #
-      # Never call the root endpoint without T0 during this workflow.
-      # ------------------------------------------------------------
+      # ============================================================
       - name: Verify TWSE proxy T0 date propagation
         id: twse_probe
         if: steps.session.outputs.session_allowed == 'true'
@@ -203,6 +250,11 @@ jobs:
           T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
+
+          if [ -z "${T0_DATE}" ]; then
+            echo "ERROR: T0_DATE is empty."
+            exit 1
+          fi
 
           twse_query_date="${T0_DATE//-/}"
           twse_url="${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
@@ -260,9 +312,9 @@ jobs:
           )
           PY
 
-      # ------------------------------------------------------------
+      # ============================================================
       # 10. Build TWSE snapshot
-      # ------------------------------------------------------------
+      # ============================================================
       - name: Build TWSE snapshot
         id: twse
         if: steps.session.outputs.session_allowed == 'true'
@@ -271,6 +323,11 @@ jobs:
           T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
+
+          if [ -z "${T0_DATE}" ]; then
+            echo "ERROR: T0_DATE is empty."
+            exit 1
+          fi
 
           twse_query_date="${T0_DATE//-/}"
           twse_url="${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
@@ -283,9 +340,9 @@ jobs:
             --date "${T0_DATE}" \
             --base-url "${twse_url}"
 
-      # ------------------------------------------------------------
+      # ============================================================
       # 11. Build premarket manifest
-      # ------------------------------------------------------------
+      # ============================================================
       - name: Build premarket manifest
         id: manifest
         if: steps.session.outputs.session_allowed == 'true'
@@ -300,9 +357,9 @@ jobs:
             --analysis-date "${ANALYSIS_DATE}" \
             --t0 "${T0_DATE}"
 
-      # ------------------------------------------------------------
-      # 12. Build AI inputs
-      # ------------------------------------------------------------
+      # ============================================================
+      # 12. Build premarket AI inputs
+      # ============================================================
       - name: Build premarket AI inputs
         id: ai_inputs
         if: steps.session.outputs.session_allowed == 'true'
@@ -317,9 +374,9 @@ jobs:
             --analysis-date "${ANALYSIS_DATE}" \
             --t0 "${T0_DATE}"
 
-      # ------------------------------------------------------------
+      # ============================================================
       # 13. Validate AI inputs
-      # ------------------------------------------------------------
+      # ============================================================
       - name: Validate AI inputs
         id: validator
         if: steps.session.outputs.session_allowed == 'true'
@@ -329,16 +386,9 @@ jobs:
 
           python scripts/validate_premarket_ai_inputs.py
 
-      # ------------------------------------------------------------
+      # ============================================================
       # 14. READY_FOR_ANALYSIS gate
-      #
-      # Outside session:
-      #   READY_FOR_ANALYSIS=false
-      #   workflow exits successfully without publication.
-      #
-      # Inside session:
-      #   All required stages must pass.
-      # ------------------------------------------------------------
+      # ============================================================
       - name: READY_FOR_ANALYSIS gate
         id: ready_gate
         if: always()
@@ -397,12 +447,9 @@ jobs:
             echo "All required data and validation stages passed."
           } >> "${GITHUB_STEP_SUMMARY}"
 
-      # ------------------------------------------------------------
-      # 15. Commit and push
-      #
-      # Only commit during an allowed premarket session and only
-      # after READY_FOR_ANALYSIS gate succeeds.
-      # ------------------------------------------------------------
+      # ============================================================
+      # 15. Commit and push generated data
+      # ============================================================
       - name: Commit and push generated data
         if: >
           steps.session.outputs.session_allowed == 'true' &&
