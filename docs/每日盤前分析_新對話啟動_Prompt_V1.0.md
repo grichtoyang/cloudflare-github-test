@@ -34,16 +34,12 @@
 2. `docs/DATA_SCHEMA.md`
 3. `docs/DATA_SOURCES.md`
 4. `docs/SYSTEM_ARCHITECTURE.md`
-5. `docs/每日盤前分析_新對話啟動_Prompt_V1.0.md`（最後讀取）
-
-目前尚未確認存在的規格文件，不得自行假設或以相近檔名代替：
-
-- `04_ANALYSIS_RULES.md`
-- `05_CHATGPT_EXECUTION_PROMPT.md`
-- `06_REPORT_TEMPLATE.md`
-- `07_DASHBOARD_SPEC.md`
-- `08_ERROR_AND_FALLBACK.md`
-- `09_AUTOMATION_ARCHITECTURE.md`
+5. 、ANALYSIS_RULES.md`
+6. 、CHATGPT_EXECUTION_PROMPT.md`
+7. 、REPORT_TEMPLATE.md`
+8. 、DASHBOARD_SPEC.md`
+9. 、ERROR_AND_FALLBACK.md`
+10. 、AUTOMATION_ARCHITECTURE.md`
 
 每份文件都要記錄：實際路徑、是否存在、是否成功讀取、文件狀態及讀取失敗原因（如有）。
 
