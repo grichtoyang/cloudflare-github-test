@@ -69,16 +69,17 @@ TWSE／TAIFEX 優先使用已驗證官方 Proxy／官方 API。TAIFEX Proxy：
 
 `https://taifex.grichtoyang.workers.dev/`
 
-其他來源依 `docs/DATA_SOURCES.md` 與 `docs/ERROR_AND_FALLBACK.md` 執行。Fallback 順序固定為：
+所有資料集依適用性及驗證結果使用以下統一順序：
 
-已驗證 Cloudflare Worker Proxy／官方 Open API
-→ 備援 API／Proxy
-→ 主要網站資料擷取
-→ 備援網站資料擷取
-→ 最近一次有效資料（僅資料性質允許，必須標示 `stale`／`last_valid`／`fallback`）
-→ `missing`
+1. `primary_proxy`：已驗證的主要 Cloudflare Worker Proxy
+2. `official_api`：官方 Open API
+3. `backup_api_proxy`：官方備援 API／Proxy
+4. `primary_web`：已驗證的主要金融資料來源
+5. `backup_web`：已驗證的備援金融資料來源
+6. `last_valid`：最近一次有效資料，僅限資料性質允許
+7. `missing`：無法取得有效資料
 
-任何 fallback 都必須記錄來源、原因、時間與影響。
+任何 Fallback 都必須記錄來源、原因、時間、資料日期與影響。不得把 `last_valid` 當成當日最新資料。
 
 ## 7. Dashboard 與同源原則
 
@@ -106,9 +107,11 @@ Dashboard 是 V1.0 必要交付物，不是選配。必須產出單一 `dashboar
 - 未完成項目
 - 最終狀態
 
-可用狀態：
+可用 `report_status`：
 
-`completed`、`completed_with_warnings`、`partial`、`failed_but_report_generated`、`blocked_by_access`、`blocked_by_rule_conflict`。
+`completed`、`completed_with_warnings`、`partial`、`insufficient_data`、`failed`、`blocked_by_access`、`blocked_by_rule_conflict`。
+
+流程失敗但已產出報告時，使用 `report_status=failed`，不得使用 `failed_but_report_generated`。
 
 ## 9. GitHub 寫回
 
@@ -132,7 +135,7 @@ Dashboard 是 V1.0 必要交付物，不是選配。必須產出單一 `dashboar
 - 文件讀取清單
 - 各模組完成狀態
 - Markdown／Dashboard JSON 產出狀態
-- 錯誤與 fallback
+- 錯誤與 Fallback
 - 未完成項目
 - GitHub 寫回結果
 - 最終狀態
