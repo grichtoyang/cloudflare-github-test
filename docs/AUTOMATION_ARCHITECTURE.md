@@ -1,200 +1,320 @@
 # 每日盤前分析 V1.0
-## 資料自動化與 ChatGPT 分析自動化邊界修訂版
+# AUTOMATION_ARCHITECTURE.md
 
-**版本狀態：定案規則**
+**版本：V1.0**  
+**文件狀態：正式架構基準**
 
----
+## 1. 文件定位
 
-## 1. 核心結論
+本文件定義每日盤前分析 V1.0 的自動化執行架構、資料流程、錯誤處理、Fallback、報告產出、Dashboard JSON 產出、GitHub Actions 執行責任與完成判定。
 
-本專案目前必須明確區分：
+本文件不取代：
+- `ANALYSIS_RULES.md`
+- `REPORT_TEMPLATE.md`
+- `DASHBOARD_SPEC.md`
+- `CHATGPT_EXECUTION_PROMPT.md`
+- `NOTICE.md`
 
-1. **資料自動化**
-2. **ChatGPT 分析自動化**
-3. **ChatGPT 寫回 GitHub**
+## 2. V1.0 系統定位
 
-目前 V1.0 的正確定位為：
+V1.0 是：
 
-> **資料自動化 + ChatGPT 人工啟動分析 + ChatGPT 嘗試自動寫回 GitHub 的半自動化系統。**
+> GitHub Actions 自動抓取與整理資料；使用者人工啟動 ChatGPT 進行分析；ChatGPT 產出 Markdown 報告與 Dashboard JSON，並嘗試寫回 GitHub。
 
-本系統目前不是完整無人值守自動化系統。
+目前不是完整無人值守的 ChatGPT 分析系統。
 
----
+GitHub Actions 負責資料抓取、標準化、品質檢查、Retry、Fallback、每日資料包與執行紀錄。ChatGPT 負責讀取規格與資料包、執行分析、產出報告與 Dashboard JSON，並嘗試寫回 GitHub。
 
-## 2. 資料自動化
+不得宣稱 GitHub Actions 在無 API Key 下可自動呼叫 ChatGPT；不得把資料抓取完成等同於盤前分析完成；不得把報告產出等同於 GitHub 寫回成功。
 
-資料自動化由 GitHub Actions 負責，包含：
-
-- 依排程啟動，例如每日台灣時間 08:00。
-- 抓取 TWSE、TAIFEX、Cloudflare Proxy 及其他資料來源。
-- 執行資料標準化。
-- 執行日期、格式、欄位、數值與完整性檢查。
-- 執行官方 API、已驗證 Proxy、備援來源及歷史資料 Fallback。
-- 建立每日資料包。
-- 保存 Raw Data、Normalized Data、Data Package。
-- 保存資料品質、錯誤、Fallback 及未完成項目。
-
-### 重要限制
-
-> GitHub Actions 完成資料抓取，不代表 ChatGPT 分析已完成。
-
----
-
-## 3. ChatGPT 分析啟動方式
-
-### 3.1 已確認結論
-
-> **無 API Key 自動呼叫 ChatGPT 已證實不可行。**
-
-因此：
-
-- GitHub Actions 不得被描述為能在無 API Key 情況下自動啟動 ChatGPT。
-- GitHub Actions 不得被描述為能自行完成 ChatGPT 盤前分析。
-- 每日 ChatGPT 分析目前必須由使用者人工啟動。
-- 任何流程圖、Prompt、Notice、Workflow 與驗收文件，都必須遵守此限制。
-
-### 3.2 正確流程
+## 3. 系統架構
 
 ```text
-GitHub Actions 自動抓取資料
-        ↓
-資料標準化、品質檢查、Fallback
-        ↓
-建立並保存每日資料包
-        ↓
-使用者人工啟動 ChatGPT
-        ↓
-ChatGPT 讀取規格與每日資料包
-        ↓
-ChatGPT 執行盤前分析
-        ↓
-產出 Markdown 報告
-        ↓
-產出 Dashboard JSON
-        ↓
-嘗試寫回 GitHub
+GitHub Actions
+  → 日期與設定初始化
+  → 資料抓取
+  → 資料標準化
+  → 品質驗證
+  → Retry／Fallback
+  → 建立每日資料包
+  → 保存資料與紀錄
+  → 使用者人工啟動 ChatGPT
+  → ChatGPT 分析
+  → Markdown 報告
+  → Dashboard JSON
+  → 驗證輸出
+  → 嘗試寫回 GitHub
 ```
 
----
+## 4. 時區與日期
 
-## 4. ChatGPT 寫回 GitHub
+所有排程與市場日期判定以 `Asia/Taipei` 為基準。
 
-### 4.1 功能狀態
+必須分開記錄：
+- `runtime_date`
+- `market_date`
+- `data_date`
+- `generated_at`
 
-> **ChatGPT 自動寫回 GitHub 可以完成，但有可能失敗。**
+週末或台灣休市日不得假造當日資料，不得將前一交易日資料標示為當日資料；可產出非交易日或未執行狀態。
 
-因此應使用「嘗試寫回」或「可執行寫回」等精確描述，不得宣稱每次必定成功。
+## 5. 執行方式
 
-### 4.2 可能失敗原因
+必須支援：
+- GitHub Actions `schedule`
+- GitHub Actions `workflow_dispatch`
+- 手動重跑
+- 指定日期重建
+- Fallback 測試
+- 輸出驗證
 
-包括但不限於：
+應使用 `concurrency` 避免同一日期重複執行。重跑時必須保留執行 ID、重跑原因與時間。
 
-- GitHub 授權或權限問題。
-- Repository、Branch 或檔案路徑錯誤。
-- GitHub API 暫時性錯誤。
-- Commit 或 Push 失敗。
-- 網路或連線問題。
-- 檔案內容或格式驗證失敗。
-- ChatGPT 工具執行中斷。
-- 寫入逾時或部分完成。
-
-### 4.3 寫回成功時
-
-應確認：
-
-- Markdown 報告已成功保存。
-- Dashboard JSON 已成功保存。
-- 目標 Repository 正確。
-- 目標 Branch 正確。
-- 目標檔案路徑正確。
-- Commit 或更新結果可確認。
-
-只有在上述結果獲得確認後，才可標示：
+## 6. 執行階段
 
 ```text
-github_writeback_status: success
+Stage 0   初始化
+Stage 1   判定 runtime_date／market_date
+Stage 2   載入設定與規格
+Stage 3   抓取資料
+Stage 4   資料標準化
+Stage 5   資料品質驗證
+Stage 6   Retry 與 Fallback
+Stage 7   建立每日資料包
+Stage 8   保存資料與執行紀錄
+Stage 9   回報資料自動化狀態
+Stage 10  使用者人工啟動 ChatGPT
+Stage 11  產出 Markdown
+Stage 12  產出 Dashboard JSON
+Stage 13  驗證輸出
+Stage 14  嘗試寫回 GitHub
+Stage 15  回報最終狀態
 ```
 
-### 4.4 寫回失敗時
+### 強制不中斷規則
 
-必須：
+一旦分析流程開始，無論中間發生任何錯誤，都必須盡可能完成：
+- Markdown 報告
+- Dashboard JSON
+- 未完成項目
+- 錯誤紀錄
+- Fallback 紀錄
+- 最終執行狀態
 
-- 明確標示 GitHub 寫回失敗。
-- 保留已產出的 Markdown 報告。
-- 保留已產出的 Dashboard JSON 或 partial JSON。
-- 記錄失敗原因。
-- 記錄尚未寫回的檔案。
-- 不得宣稱 GitHub 已成功更新。
-- 不得因寫回失敗而抹除已完成的分析結果。
+單一模組失敗不得直接使整體流程停止。只有執行環境完全無法運作，或必要輸出完全無法建立時，才可標示 `FAILED_FATAL`。
 
-建議狀態：
+## 7. 資料來源
+
+### TAIFEX／Cloudflare Proxy
+- 台指期行情
+- 日盤與夜盤資料
+- 三大法人期貨 OI
+- 選擇權鏈與 OI
+- 法人資料
+- Call Wall、Put Wall、Gamma Wall、Gamma Flip、Max Pain
+
+### TWSE／TAIEX Proxy
+- 台股現貨
+- 加權指數
+- 成交量
+- 三大法人現貨資料
+- 融資融券等可取得資料
+
+### FinMind
+作為補充、歷史與備援來源。使用前必須驗證日期、欄位與定義。
+
+### 外部市場與新聞
+可包含美股指數、SOX、美債殖利率、美元、匯率、日韓市場、BTC、金融與產業新聞。每筆資料必須記錄來源、時間與狀態。
+
+## 8. 資料處理層
 
 ```text
-github_writeback_status: failed
+raw/
+normalized/
+validated/
+analysis_input/
+output/
+logs/
 ```
 
-或：
+- Raw Data：保存原始回傳，不任意修改。
+- Normalized Data：統一欄位、日期、時間、單位與型別。
+- Validated Data：完成日期、欄位、型別、數值、盤別、時間戳與完整性檢查。
+- Analysis Package：提供 ChatGPT 使用，並包含來源、時間、品質、Fallback、缺失與未完成項目。
+
+## 9. Retry 與 Fallback
 
 ```text
-github_writeback_status: partial
+Level 1：同一 Endpoint 重試
+Level 2：同一來源替代 Endpoint
+Level 3：Cloudflare Proxy 內部備援
+Level 4：第二資料來源
+Level 5：Unavailable／Not Computable
 ```
 
----
+每次必須記錄：
+- 原始來源與 Endpoint
+- 失敗時間與原因
+- Retry 次數
+- 實際使用來源與 Endpoint
+- 資料時間
+- 是否影響分析結論
 
-## 5. 系統狀態定義
+## 10. 錯誤處理
+
+錯誤至少包括：
+- 網路、DNS、HTTP
+- 空值、JSON、欄位與型別
+- 日期、盤別、延遲與來源不一致
+- 分析、Markdown、Dashboard JSON
+- GitHub 寫回
+
+每個錯誤至少包含：
+
+```text
+error_code
+error_stage
+source
+endpoint
+timestamp
+message
+retry_count
+fallback_used
+impact
+resolution
+```
+
+## 11. 強制資料規則
+
+1. 缺失資料不得補成 `0`，應使用 `null`、`Unavailable`、`Partial` 或 `Not Computable`。
+2. OI 是部位存量；成交量與夜盤新增流向是期間流量，不得混用。
+3. 近月與當週選擇權必須分開標示。
+4. 所有資料必須標示資料日期、時間、來源、單位與狀態。
+5. Call Wall、Put Wall、Gamma Wall、Gamma Flip、Max Pain 不得單獨直接作為交易訊號。
+6. 資料不足或矛盾時不得強行產生多空方向。
+
+## 12. Markdown 報告
+
+報告至少包含：
+- 報告日期與產出時間
+- 執行狀態與資料品質
+- 台股現貨、台指期、選擇權
+- 美股與總體環境
+- 重要新聞
+- 綜合判斷、支撐壓力與風險情境
+- Fallback、缺失資料與未完成項目
+- 資料限制與免責
+
+資料不完整時仍必須產出，並明確揭露原因。
+
+## 13. Dashboard JSON
+
+Dashboard 必須與 Markdown 使用同一份分析結果。
+
+不得重新抓資料、重新計算結論，或在前端自行推導未經分析引擎確認的結論。
+
+最低結構：
+
+```json
+{
+  "schema_version": "1.0",
+  "report_date": "YYYY-MM-DD",
+  "generated_at": "ISO-8601",
+  "runtime_date": "YYYY-MM-DD",
+  "overall_status": "SUCCESS",
+  "data_quality": {},
+  "sources": {},
+  "market": {},
+  "futures": {},
+  "options": {},
+  "macro": {},
+  "news": {},
+  "summary": {},
+  "warnings": [],
+  "incomplete_items": [],
+  "fallbacks": []
+}
+```
+
+## 14. GitHub 寫回
+
+ChatGPT 可以嘗試寫回 Markdown、Dashboard JSON 與狀態紀錄，但不得保證每次成功。
+
+只有在 Repository、Branch、路徑、Commit 與檔案內容重新讀取均確認後，才可標示成功。
+
+狀態至少區分：
+- `github_writeback_success`
+- `github_writeback_partial`
+- `github_writeback_failed`
+
+寫回失敗時必須保留已產出的分析結果並記錄原因。
+
+## 15. 最終狀態
 
 | 狀態 | 定義 |
 |---|---|
-| `data_collection_completed` | 資料抓取、標準化及保存完成 |
-| `data_collection_partial` | 部分資料完成，仍有缺失或 Fallback |
-| `analysis_not_started` | 尚未人工啟動 ChatGPT |
-| `analysis_completed` | ChatGPT 已完成分析與報告產出 |
-| `github_writeback_success` | 報告與 Dashboard 已確認寫回 GitHub |
-| `github_writeback_partial` | 部分檔案已寫回，部分失敗 |
-| `github_writeback_failed` | 寫回 GitHub 失敗，但分析結果仍保留 |
-| `completed_with_warnings` | 分析完成，但存在資料、Fallback 或寫回警告 |
-| `partial` | 僅部分流程完成 |
-| `failed_but_report_generated` | 流程有失敗，但仍產出報告 |
+| `SUCCESS` | 所有必要流程與輸出完成 |
+| `SUCCESS_WITH_FALLBACK` | 完成但使用備援來源 |
+| `PARTIAL_SUCCESS` | 部分資料或模組未完成但輸出已產出 |
+| `INCOMPLETE` | 必要流程仍未完成 |
+| `FAILED_OUTPUT` | 必要輸出失敗 |
+| `FAILED_FATAL` | 執行環境或必要流程完全無法運作 |
+| `ANALYSIS_NOT_STARTED` | 資料包完成但 ChatGPT 尚未人工啟動 |
+| `GITHUB_WRITEBACK_PARTIAL` | 部分檔案已寫回 |
+| `GITHUB_WRITEBACK_FAILED` | GitHub 寫回失敗 |
 
----
+## 16. 完成判定
 
-## 6. V1.0 功能狀態
+### 資料自動化完成
+- 資料抓取、標準化與驗證完成
+- Retry／Fallback 已執行
+- 每日資料包已建立
+- 錯誤與未完成項目已保存
+- 執行狀態已寫入
 
-| 功能 | 狀態 |
-|---|---|
-| GitHub Actions 定時抓取資料 | 可行 |
-| 資料標準化與品質檢查 | 可行 |
-| Fallback 機制 | 可行 |
-| 建立每日資料包 | 可行 |
-| 無 API Key 自動呼叫 ChatGPT | **已證實不可行** |
-| 人工啟動 ChatGPT 分析 | 可行 |
-| ChatGPT 產出 Markdown | 可行 |
-| ChatGPT 產出 Dashboard JSON | 可行 |
-| ChatGPT 自動寫回 GitHub | **可行，但可能失敗** |
-| 完整無人值守分析流程 | **目前不可行／未達成** |
+### 盤前分析完成
+- ChatGPT 已人工啟動
+- 規格與資料包已讀取
+- Markdown 與 Dashboard JSON 已產出
+- 未完成項目與 Fallback 已揭露
+- 輸出格式已驗證
+- 最終狀態已回報
 
----
+### GitHub 寫回完成
+- Markdown 與 Dashboard JSON 已成功寫回
+- Repository、Branch、路徑正確
+- Commit 已確認
+- 檔案可重新讀取驗證
 
-## 7. 文件與實作上的強制要求
+## 17. 驗收標準
 
-所有相關文件必須遵守：
+- [ ] 排程與時區正確
+- [ ] 手動執行可用
+- [ ] 日期與休市日判定正確
+- [ ] 可重跑且保留歷史紀錄
+- [ ] Retry／Fallback 可用
+- [ ] 缺失資料不補零
+- [ ] OI 與交易流量未混用
+- [ ] 每日資料包可建立
+- [ ] Markdown 可產出
+- [ ] Dashboard JSON 可產出
+- [ ] 兩者使用同一份分析結果
+- [ ] 錯誤與未完成項目可追蹤
+- [ ] GitHub 寫回成功、部分成功與失敗可區分
+- [ ] 未經端到端測試不得宣稱完成
 
-1. 不得將資料自動化寫成分析自動化。
-2. 不得宣稱 GitHub Actions 能無 API Key 自動呼叫 ChatGPT。
-3. 必須明確寫出 ChatGPT 分析需要使用者人工啟動。
-4. ChatGPT 寫回 GitHub 必須使用「嘗試寫回」的描述。
-5. 寫回成功必須有結果確認。
-6. 寫回失敗必須保留分析結果並記錄失敗。
-7. 不得把「報告已產出」等同於「GitHub 已成功更新」。
-8. 不得把「資料包已建立」等同於「每日盤前分析已完成」。
-9. 完整無人值守流程列為後續版本或獨立驗證項目。
-10. 未經實際端到端測試，不得宣稱流程已完成。
+## 18. 最終強制規則
 
----
-
-## 8. 最終定義
-
-本專案目前的正確描述為：
-
-> **GitHub Actions 負責資料自動化；使用者人工啟動 ChatGPT 進行分析；ChatGPT 可嘗試將 Markdown 報告與 Dashboard JSON 寫回 GitHub，但寫回可能失敗，且必須明確回報成功、部分成功或失敗狀態。**
-
+1. 資料自動化不等於 ChatGPT 分析自動化。
+2. 無 API Key 不得宣稱 GitHub Actions 可自動呼叫 ChatGPT。
+3. ChatGPT 分析目前必須由使用者人工啟動。
+4. 分析開始後必須盡可能完成所有最終輸出與狀態。
+5. 缺失資料不得補零。
+6. 不得把延遲資料標示為即時。
+7. 不得混用 OI 與交易流量。
+8. 不得混用近月與當週選擇權。
+9. 不得把單一關鍵價位直接當成交易訊號。
+10. Fallback 必須可追蹤。
+11. Markdown 與 Dashboard 必須來自同一份分析結果。
+12. 報告已產出不等於 GitHub 已成功更新。
+13. 未經端到端測試不得宣稱系統完成。
