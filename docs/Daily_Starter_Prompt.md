@@ -25,22 +25,22 @@
 
 文件角色固定如下：
 
-1. `Daily Starter Prompt.md`
+1. `docs/Daily_Starter_Prompt.md`
    - 只負責啟動本專案、確認 Repository、載入正式規格並呼叫執行流程。
-2. `CHATGPT_EXECUTION_PROMPT.md`
+2. `docs/CHATGPT_EXECUTION_PROMPT.md`
    - 負責每日盤前分析的實際執行順序、資料檢查、分析、報告產出、Dashboard JSON、錯誤處理與最終狀態。
-3. `SYSTEM_ARCHITECTURE.md`
+3. `docs/SYSTEM_ARCHITECTURE.md`
    - 負責說明系統元件、資料流、報告流與責任邊界。
-4. `AUTOMATION_ARCHITECTURE.md`
+4. `docs/AUTOMATION_ARCHITECTURE.md`
    - 負責說明 GitHub Actions、自動化範圍、人工啟動邊界與不可行事項。
 
 啟動時必須先讀取：
 
-1. `CHATGPT_EXECUTION_PROMPT.md`
-2. `SYSTEM_ARCHITECTURE.md`
-3. `AUTOMATION_ARCHITECTURE.md`
+1. `docs/CHATGPT_EXECUTION_PROMPT.md`
+2. `docs/SYSTEM_ARCHITECTURE.md`
+3. `docs/AUTOMATION_ARCHITECTURE.md`
 
-接著依 `CHATGPT_EXECUTION_PROMPT.md` 指定的清單讀取其他正式規格。
+接著依 `docs/CHATGPT_EXECUTION_PROMPT.md` 指定的清單讀取其他正式規格。
 
 若本啟動文件與 GitHub 上的正式規格衝突，不得自行選擇或隱瞞，必須記錄衝突；以 GitHub 上最新且明確標示為正式版本的規格為準。
 
@@ -104,20 +104,20 @@ Gate 0 未完成前，不得宣稱每日盤前分析已完成。
 
 依序確認並實際讀取：
 
-1. `01_PROJECT_SPEC.md`
-2. `02_DATA_SCHEMA.md`
-3. `03_DATA_SOURCE_SPEC.md`
-4. `04_ANALYSIS_RULES.md`
-5. `06_REPORT_TEMPLATE.md`
-6. `07_DASHBOARD_SPEC.md`
-7. `08_ERROR_AND_FALLBACK.md`
-8. `09_AUTOMATION_ARCHITECTURE.md`
+1. `docs/PROJECT_OVERVIEW.md`
+2. `docs/DATA_SCHEMA.md`
+3. `docs/DATA_SOURCES.md`
+4. `docs/ANALYSIS_RULES.md`
+5. `docs/REPORT_TEMPLATE.md`
+6. `docs/DASHBOARD_SPEC.md`
+7. `docs/ERROR_AND_FALLBACK.md`
+8. `docs/AUTOMATION_ARCHITECTURE.md`
 
 ### 第二階段：讀取正式分析 Prompt
 
 最後讀取：
 
-9. `05_CHATGPT_EXECUTION_PROMPT.md`
+9. `docs/CHATGPT_EXECUTION_PROMPT.md`
 
 只有在第一階段與第二階段的文件檢查完成後，才可執行正式分析。
 
@@ -148,7 +148,7 @@ Gate 0 未完成前，不得宣稱每日盤前分析已完成。
 
 完成 Gate 0、規格文件載入與最新資料檢查後，必須嚴格依照：
 
-`05_CHATGPT_EXECUTION_PROMPT.md`
+`docs/CHATGPT_EXECUTION_PROMPT.md`
 
 執行完整流程，包含：
 
@@ -316,7 +316,7 @@ Dashboard 是 V1.0 必要功能，不是選配。
 3. 執行 Gate 0。
 4. 逐一確認並實際讀取指定 Markdown 文件。
 5. 讀取最新資料包。
-6. 執行 `05_CHATGPT_EXECUTION_PROMPT.md`。
+6. 執行 `docs/CHATGPT_EXECUTION_PROMPT.md`。
 7. 持續執行到產出 Markdown 與 Dashboard JSON。
 8. 回報實際結果，不得假裝成功。
 
