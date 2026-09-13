@@ -32,7 +32,5 @@
   },
   "ready_for_analysis": true,
   "fallback_used": false,
-  "fallback_error": null,
-  "published": true,
-  "published_snapshot": "data/snapshots/2026-09-11/twse-snapshot.json"
+  "fallback_error": null
 }
