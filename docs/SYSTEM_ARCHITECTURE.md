@@ -62,13 +62,19 @@ GitHub 寫回失敗不得阻止報告產出。
 
 目前 GitHub 已定案文件的實際讀取順序為：
 
-1. `PROJECT_OVERVIEW.md`
-2. `SYSTEM_ARCHITECTURE.md`
-3. `DATA_SOURCES.md`
-4. `DATA_SCHEMA.md`
-5. `每日盤前分析_新對話啟動_Prompt_V1.0.md`
+1. `docs/Daily_Starter_Prompt.md`
+2. `docs/PROJECT_OVERVIEW.md`
+3. `docs/SYSTEM_ARCHITECTURE.md`
+4. `docs/DATA_SCHEMA.md`
+5. `docs/DATA_SOURCES.md`
+6. `docs/ANALYSIS_RULES.md`
+7. `docs/REPORT_TEMPLATE.md`
+8. `docs/DASHBOARD_SPEC.md`
+9. `docs/ERROR_AND_FALLBACK.md`
+10. `docs/AUTOMATION_ARCHITECTURE.md`
+11. `docs/CHATGPT_EXECUTION_PROMPT.md`
 
-後續新增規格文件後，必須先提交並確認實際檔名，再更新本節；不得使用不存在的檔名宣稱已載入。
+啟動時必須依序確認並實際讀取上述文件內容。後續新增或改名規格文件後，必須先提交並確認實際檔名，再更新本節；不得使用不存在的檔名宣稱已載入。
 
 只有實際讀取檔案內容，才可標示為「已載入」。
 
