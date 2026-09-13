@@ -120,6 +120,13 @@
 - 產出或確認 Dashboard JSON；
 - 明確標示資料不足、延遲、fallback 與不確定性。
 
+**報告產出強制規則：**
+
+1. Markdown 分析報告必須完整遵守 `docs/REPORT_TEMPLATE.md` 所定義的章節、欄位、順序、資料標籤、風險警語與結論格式。
+2. 不得以摘要版、簡化版、自訂版或其他格式取代 `docs/REPORT_TEMPLATE.md` 的正式報告。
+3. 若正式模板要求的資料、欄位或分析項目缺失，必須明確標示 `missing`、`insufficient_data` 或適用的資料狀態，不得自行補值、猜測或虛構。
+4. 第 5 階段完成的定義，不只是「有產出 Markdown」，而是「已依正式模板完成完整報告，或已明確記錄無法完成的缺項與原因」。
+
 ### 第 6 階段：最終驗證與結案
 
 整合以下工作：
@@ -131,6 +138,13 @@
 - 確認所有錯誤、警告與 fallback；
 - 確認 GitHub 寫回狀態（若本次有執行）；
 - 回報最終 `report_status`。
+
+**結案強制規則：**
+
+1. 必須逐項核對 `docs/REPORT_TEMPLATE.md` 的所有必要章節、欄位、分析項目、資料標籤、風險警語與結論格式。
+2. 只要有任何必要項目缺失、未驗證、格式不符或未說明原因，不得將本次流程標記為 `completed` 或 `completed_with_warnings`。
+3. 遇到必要項目缺失時，必須標記為 `FAILED` 或 `RETRY_REQUIRED`；若是資料來源或權限造成且無法排除，則依正式規格標記適用的 `BLOCKED`／`insufficient_data`／`blocked_by_access`。
+4. 只有在報告模板完整符合、Dashboard JSON 狀態已確認、六階段均有實際執行證據，且所有缺失與限制均已依規格處理後，才可宣告整體完成。
 
 每一回合只處理其中一個主要階段。階段內可依正式文件處理必要子項目，但必須在本回合報告所有實際處理結果。
 
@@ -254,7 +268,9 @@
 - 尚有主要階段為 `PENDING`、`FAILED`、`BLOCKED` 或 `RETRY_REQUIRED`；
 - 尚未確認 Markdown 報告；
 - 尚未確認 Dashboard JSON；
-- 尚未完成最終完整性檢查。
+- 尚未完成最終完整性檢查；
+- Markdown 報告尚未逐項符合 `docs/REPORT_TEMPLATE.md`；
+- 正式模板必要章節、欄位或分析項目有任何缺失且未依規格處理。
 
 只有第 6 階段完成後，才可宣告本次流程結束，且必須依實際結果回報最終 `report_status`。
 
@@ -280,6 +296,7 @@
 - Markdown 報告狀態；
 - Dashboard JSON 狀態；
 - GitHub 寫回狀態（若本次有執行）；
+- 正式模板必要項目的核對結果；
 - 最終 `report_status`。
 
 不得使用「應該完成」、「大致完成」、「看起來正常」等模糊表述。
