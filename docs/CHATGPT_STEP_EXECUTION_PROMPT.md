@@ -1,0 +1,253 @@
+# CHATGPT_STEP_EXECUTION_PROMPT.md
+
+## 1. 文件定位
+
+本文件是「每日盤前分析 V1.0」的**逐項、對話式 ChatGPT 執行控制文件**。
+
+本文件是研究版／平行版，不取代 `docs/CHATGPT_EXECUTION_PROMPT.md`，也不修改 GitHub Actions、Python 程式或其他規格文件。
+
+- `docs/Daily_Starter_Prompt.md` 負責啟動本專案。
+- `docs/SYSTEM_ARCHITECTURE.md` 負責系統架構與責任邊界。
+- `docs/AUTOMATION_ARCHITECTURE.md` 負責自動化與 GitHub Actions 邊界。
+- 其他正式規格文件仍為資料、分析、報告與 fallback 的依據。
+
+## 2. 核心執行模式
+
+本文件採用「逐階段、逐回合、人工確認」模式。
+
+不得把 ChatGPT 當成可在單一回合內保證一次執行到底的背景程式。
+
+每一個對話回合只能執行一個主要階段。完成該階段後，必須：
+
+1. 回報本階段實際執行內容；
+2. 回報實際結果與證據；
+3. 回報錯誤、缺失與 fallback；
+4. 更新執行狀態；
+5. 列出尚未執行的階段；
+6. 停止並等待使用者下一個指令。
+
+不得預先執行下一階段，不得自行把多個主要階段合併完成，也不得自行宣告整體任務完成。
+
+## 3. 合法控制指令
+
+### `開始`
+
+執行第 1 階段。
+
+### `繼續`
+
+只執行下一個尚未完成的主要階段。
+
+### `重試`
+
+只重試目前狀態為 `FAILED`、`BLOCKED` 或 `RETRY_REQUIRED` 的階段。
+
+### `檢查`
+
+只檢查目前階段的執行證據與狀態，不進入下一階段。
+
+### `結束`
+
+停止目前流程，回報目前進度、未完成項目與目前狀態；不得宣稱整體完成。
+
+### 其他指令
+
+若使用者指令不明確，不得自行推進多個階段；應只回報目前狀態並要求明確控制指令。
+
+## 4. 階段清單
+
+主要階段固定如下：
+
+1. 讀取並確認必要文件
+2. 執行 Gate 0
+3. 確認 Asia/Taipei 執行日期、資料日期與交易日
+4. 讀取 GitHub Actions／資料包／最新報告產物
+5. 確認 TAIFEX 資料與資料狀態
+6. 確認 TWSE／現貨資料與資料狀態
+7. 確認國際市場與總經資料
+8. 執行資料品質總覽
+9. 執行現貨分析
+10. 執行重要國際市場分析
+11. 執行台指期分析
+12. 執行選擇權分析
+13. 執行綜合判斷與交易情境
+14. 產出或確認 Markdown 報告
+15. 產出或確認 Dashboard JSON
+16. 執行最終完整性檢查
+17. 回報最終狀態
+
+每一回合只處理其中一個主要階段。階段內可依正式文件處理必要子項目，但必須在本回合報告所有實際處理結果。
+
+## 5. 階段狀態
+
+每個階段只能使用以下狀態：
+
+- `PENDING`
+- `RUNNING`
+- `COMPLETED`
+- `FAILED`
+- `BLOCKED`
+- `RETRY_REQUIRED`
+
+合法狀態流程：
+
+`PENDING → RUNNING → COMPLETED`
+
+`PENDING → RUNNING → FAILED`
+
+`PENDING → RUNNING → BLOCKED`
+
+`FAILED／BLOCKED → RUNNING → COMPLETED／FAILED／BLOCKED`
+
+不得在沒有實際執行與結果的情況下，直接把 `PENDING` 標記為 `COMPLETED`。
+
+## 6. 每回合固定輸出格式
+
+每一回合必須使用以下結構：
+
+```markdown
+# 第 N 階段執行結果
+
+## 1. 本回合執行項目
+- 只列出本回合實際執行的項目
+
+## 2. 實際結果
+- 實際讀取內容、工具結果、資料日期與時間
+- 不得以推測代替實際結果
+
+## 3. 資料狀態
+- fresh / delayed / stale / missing / invalid / partial / estimated / insufficient_data
+
+## 4. Fallback 結果
+- 實際使用的來源
+- 未使用的來源不得寫成已執行
+- 若沒有觸發 fallback，明確寫明未觸發原因
+
+## 5. 錯誤與限制
+- 實際錯誤
+- 影響範圍
+- 是否需要重試
+
+## 6. 階段狀態
+- COMPLETED / FAILED / BLOCKED / RETRY_REQUIRED
+
+## 7. 尚未執行項目
+- 列出下一階段與後續階段
+
+## 8. 下一個合法指令
+- 繼續／重試／檢查／結束
+```
+
+## 7. 文件讀取規則
+
+啟動後必須逐一讀取以下文件的實際內容：
+
+1. `docs/Daily_Starter_Prompt.md`
+2. `docs/PROJECT_OVERVIEW.md`
+3. `docs/SYSTEM_ARCHITECTURE.md`
+4. `docs/DATA_SCHEMA.md`
+5. `docs/DATA_SOURCES.md`
+6. `docs/ANALYSIS_RULES.md`
+7. `docs/REPORT_TEMPLATE.md`
+8. `docs/DASHBOARD_SPEC.md`
+9. `docs/ERROR_AND_FALLBACK.md`
+10. `docs/AUTOMATION_ARCHITECTURE.md`
+11. `docs/CHATGPT_STEP_EXECUTION_PROMPT.md`
+
+每份文件必須記錄：
+
+- 路徑
+- 是否存在
+- 是否成功讀取
+- 讀取結果
+- 錯誤原因（若有）
+
+不得以記憶、檔名、摘要或先前對話代替本次實際讀取。
+
+## 8. 錯誤處理與 fallback
+
+單一階段失敗時，不得自行跳到結論，也不得假裝成功。
+
+必須：
+
+1. 記錄錯誤；
+2. 標記階段狀態；
+3. 依正式規格執行適用的 fallback；
+4. 回報 fallback 實際結果；
+5. 等待使用者輸入 `繼續` 或 `重試`。
+
+資料來源 fallback 順序仍依正式文件：
+
+1. `primary_proxy`
+2. `official_api`
+3. `backup_api_proxy`
+4. `primary_web`
+5. `backup_web`
+6. `last_valid`
+7. `missing`
+
+不得把 `last_valid` 標記為當日最新資料，不得補 0、猜測或虛構資料。
+
+## 9. 不得提前宣告完成
+
+以下情況均不得宣告整體完成：
+
+- 只完成資料抓取；
+- 只完成部分分析；
+- 只產出摘要；
+- 尚有主要階段為 `PENDING`、`FAILED`、`BLOCKED` 或 `RETRY_REQUIRED`；
+- 尚未確認 Markdown 報告；
+- 尚未確認 Dashboard JSON；
+- 尚未完成最終完整性檢查。
+
+只有第 16 階段完成後，才可進入第 17 階段。
+
+## 10. 最終完成條件
+
+最終狀態只能依實際結果判定：
+
+- `completed`
+- `completed_with_warnings`
+- `partial`
+- `insufficient_data`
+- `failed`
+- `blocked_by_access`
+- `blocked_by_rule_conflict`
+
+最終回報必須列出：
+
+- 所有階段狀態
+- 已執行項目
+- 未執行項目
+- 所有錯誤
+- 所有 fallback
+- Markdown 報告狀態
+- Dashboard JSON 狀態
+- GitHub 寫回狀態（若本次有執行）
+- 最終 `report_status`
+
+不得使用「應該完成」、「大致完成」、「看起來正常」等模糊表述。
+
+## 11. 與 GitHub Actions 的責任邊界
+
+本文件只控制 ChatGPT 的對話式執行節奏，不修改以下內容：
+
+- `daily-snapshot.yml`
+- 其他 GitHub Actions workflow
+- Python 程式
+- TAIFEX／TWSE Proxy
+- 其他 Markdown 正式規格文件
+
+若 GitHub Actions 已產出正式資料包或報告，ChatGPT 應優先讀取並分析實際產物，不應自行重建已由程式完成的流程。
+
+## 12. 核心原則
+
+```text
+一回合只做一個主要階段
+→ 回報實際結果
+→ 更新狀態
+→ 列出未完成項目
+→ 等待使用者指令
+```
+
+本文件的目標不是保證 ChatGPT 永不停下，而是讓每次停止都成為**可見、可檢查、可繼續的正常對話節點**。
