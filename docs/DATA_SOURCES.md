@@ -7,18 +7,18 @@
 
 1. GitHub Actions → 已驗證 Cloudflare Worker Proxy
 2. 官方 Open API
-3. 其他可合法擷取的財經／新聞網站
-4. 最近一次有效資料（僅限資料性質允許）
-5. `missing`
+3. 官方備援 API／Proxy
+4. 已驗證的主要財經／新聞網站
+5. 已驗證的備援財經／新聞網站
+6. 最近一次有效資料（僅限資料性質允許）
+7. `missing`
 
 只有上一層來源發生連線、HTTP、格式、日期、欄位、空值、數值、單位、時間或完整性問題時，才可切換下一層；每次切換都必須記錄 `fallback_reason`。
 
 ## 2. 主要來源
 
 - **TAIFEX Proxy**：`https://taifex.grichtoyang.workers.dev`
-  - 台指期行情、期貨法人與未平倉量、選擇權鏈與法人籌碼、Call Wall、Put Wall、Gamma Wall、Gamma Flip、Max Pain。
 - **TWSE／TAIEX Proxy**：`https://twse-proxy.grichtoyang.workers.dev/`
-  - 加權指數、現貨、成交量、三大法人、融資融券、借券及其他 TWSE／TAIEX 資料。
 
 每個 endpoint 使用前必須驗證 HTTP 狀態、格式、可解析性、日期、時間、必要欄位、非空、數值、單位與完整性；未通過不得進入分析。
 
@@ -31,9 +31,7 @@
 
 ## 4. 網站備援
 
-僅在 Proxy 與官方 API 均無法取得有效資料時使用合法網站，例如 Yahoo Finance、MoneyDJ、Goodinfo!、財報狗、HiStock、鉅亨網、Reuters、CNBC、Trading Economics、MarketWatch。
-
-網站資料必須記錄來源、`request_url`、擷取時間、資料日期、資料狀態與限制；不得標示為官方即時資料。
+僅在 Proxy、官方 API 與官方備援 API／Proxy 均無法取得有效資料時，使用合法且已驗證的網站資料。網站資料必須記錄來源、`request_url`、擷取時間、資料日期、資料狀態與限制；不得標示為官方即時資料。
 
 ## 5. 最近一次有效資料與 missing
 
@@ -48,9 +46,16 @@
 
 `source`、`source_role`、`base_url`、`endpoint`、`request_url`、`request_time`、`response_time`、`http_status`、`raw_payload`、`data_date`、`data_timestamp`、`data_status`、`fallback_reason`、`error_code`、`validation_errors`。
 
-來源角色：`primary_proxy`、`official_api_fallback`、`web_scraping_fallback`、`last_valid`。
+來源角色只允許：
 
-資料狀態：`fresh`、`delayed`、`stale`、`missing`、`invalid`、`partial`、`estimated`、`insufficient_data`。
+- `primary_proxy`
+- `official_api`
+- `backup_api_proxy`
+- `primary_web`
+- `backup_web`
+- `last_valid`
+
+資料狀態只允許：`fresh`、`delayed`、`stale`、`missing`、`invalid`、`partial`、`estimated`、`insufficient_data`。
 
 `fallback` 不屬於 `data_status`；是否使用 fallback 由 `fallback.used` 表示，來源種類由 `source_role` 表示。
 
