@@ -9,7 +9,7 @@
 - OpenAI API Key：不使用
 - TAIFEX Proxy：`https://taifex.grichtoyang.workers.dev/`
 
-每次啟動後，必須先驗證 GitHub 存取能力，再讀取規格與資料，最後產出報告。不得只依檔名、摘要或過往對話宣稱已完成。
+每次啟動後，必須先驗證 GitHub 存取能力，再依序讀取全部規格文件與資料，完成一致性確認後，最後才可讀取並執行 `CHATGPT_EXECUTION_PROMPT.md`。不得只依檔名、摘要或過往對話宣稱已完成。
 
 ## 2. Gate 0：執行能力
 
@@ -28,20 +28,22 @@
 
 ## 3. 規格文件讀取順序
 
-依 GitHub `docs/` 的實際檔名讀取：
+依 GitHub `docs/` 的實際檔名讀取。前 9 份文件必須先完成實際讀取與一致性確認；`CHATGPT_EXECUTION_PROMPT.md` 必須最後讀取，並且只能在前述文件與資料規格確認後執行。
 
 1. `docs/PROJECT_OVERVIEW.md`
-2. `docs/DATA_SCHEMA.md`
-3. `docs/DATA_SOURCES.md`
-4. `docs/SYSTEM_ARCHITECTURE.md`
-5. `docs/ANALYSIS_RULES.md`
-6. `docs/CHATGPT_EXECUTION_PROMPT.md`
+2. `docs/SYSTEM_ARCHITECTURE.md`
+3. `docs/DATA_SCHEMA.md`
+4. `docs/DATA_SOURCES.md`
+5. `docs/ERROR_AND_FALLBACK.md`
+6. `docs/ANALYSIS_RULES.md`
 7. `docs/REPORT_TEMPLATE.md`
 8. `docs/DASHBOARD_SPEC.md`
-9. `docs/ERROR_AND_FALLBACK.md`
-10. `docs/AUTOMATION_ARCHITECTURE.md`
+9. `docs/AUTOMATION_ARCHITECTURE.md`
+10. `docs/CHATGPT_EXECUTION_PROMPT.md`
 
 每份文件都要記錄：實際路徑、是否存在、是否成功讀取、文件狀態及讀取失敗原因（如有）。
+
+不得在第 1 至第 9 份文件尚未完成讀取、檢查或發現未處理衝突前，提前執行第 10 份 `CHATGPT_EXECUTION_PROMPT.md`。
 
 ## 4. 資料讀取
 
@@ -173,5 +175,7 @@ Dashboard 使用同一份 `dashboard_latest.json`，只展示分析結果，不�
 **只有實際開啟並讀取檔案內容，才可以宣稱文件已載入。**
 
 **文件名稱與路徑一律以 GitHub `docs/` 的實際檔名為準。**
+
+**只有前 9 份規格文件完成讀取與一致性確認後，才可以讀取並執行 `CHATGPT_EXECUTION_PROMPT.md`。**
 
 **只有實際完成並驗收後，才可以宣稱每日盤前分析已完成。**
