@@ -58,7 +58,7 @@ def validate_published_snapshot(path: Path, source: str, t0_date: str) -> list[s
     return errors
 
 
-def validate_source_manifest(path: Path, source: str, expected_analysis_date: str, t0_date: str) -> tuple[bool, list[str], dict]:
+def validate_source_manifest(path: Path, source: str, expected_data_date: str) -> tuple[bool, list[str], dict]:
     errors: list[str] = []
     if not path.exists():
         return False, [f"missing manifest: {path}"], {}
@@ -67,8 +67,8 @@ def validate_source_manifest(path: Path, source: str, expected_analysis_date: st
     except Exception as exc:
         return False, [f"cannot read {path}: {exc}"], {}
 
-    if manifest.get("analysis_date") != expected_analysis_date:
-        errors.append(f"{source} analysis_date mismatch")
+    if manifest.get("analysis_date") != expected_data_date:
+        errors.append(f"{source} data_date mismatch")
     if manifest.get("source") != source:
         errors.append(f"{source} source mismatch")
     if manifest.get("ready_for_analysis") is not True:
@@ -79,7 +79,7 @@ def validate_source_manifest(path: Path, source: str, expected_analysis_date: st
     if not snapshot:
         errors.append(f"{source} published_snapshot missing")
     else:
-        errors.extend(validate_published_snapshot(Path(snapshot), source, t0_date))
+        errors.extend(validate_published_snapshot(Path(snapshot), source, expected_data_date))
         expected_hash = manifest.get("snapshot_sha256")
         if expected_hash:
             actual_hash = sha256(Path(snapshot))
@@ -121,8 +121,8 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     started = now_utc()
-    taifex_ok, taifex_errors, taifex = validate_source_manifest(taifex_path, "TAIFEX", analysis_date, t0_date)
-    twse_ok, twse_errors, twse = validate_source_manifest(twse_path, "TWSE", t0_date, t0_date)
+    taifex_ok, taifex_errors, taifex = validate_source_manifest(taifex_path, "TAIFEX", t0_date)
+    twse_ok, twse_errors, twse = validate_source_manifest(twse_path, "TWSE", t0_date)
     errors = taifex_errors + twse_errors
     ready = taifex_ok and twse_ok
     completed = now_utc()
