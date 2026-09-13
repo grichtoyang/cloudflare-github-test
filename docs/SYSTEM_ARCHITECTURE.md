@@ -60,15 +60,15 @@ GitHub 寫回失敗不得阻止報告產出。
 
 ## 4. 規格讀取順序
 
-1. `01_PROJECT_SPEC.md`
-2. `02_DATA_SCHEMA.md`
-3. `03_DATA_SOURCE_SPEC.md`
-4. `04_ANALYSIS_RULES.md`
-5. `06_REPORT_TEMPLATE.md`
-6. `07_DASHBOARD_SPEC.md`
-7. `08_ERROR_AND_FALLBACK.md`
-8. `09_AUTOMATION_ARCHITECTURE.md`
-9. `05_CHATGPT_EXECUTION_PROMPT.md`
+目前 GitHub 已定案文件的實際讀取順序為：
+
+1. `PROJECT_OVERVIEW.md`
+2. `SYSTEM_ARCHITECTURE.md`
+3. `DATA_SOURCES.md`
+4. `DATA_SCHEMA.md`
+5. `每日盤前分析_新對話啟動_Prompt_V1.0.md`
+
+後續新增規格文件後，必須先提交並確認實際檔名，再更新本節；不得使用不存在的檔名宣稱已載入。
 
 只有實際讀取檔案內容，才可標示為「已載入」。
 
@@ -76,12 +76,12 @@ GitHub 寫回失敗不得阻止報告產出。
 
 Fallback 順序固定為：
 
-1. 官方 Open API
-2. 已驗證官方 Proxy
+1. 已驗證 Cloudflare Worker Proxy
+2. 官方 Open API
 3. 備援 API／Proxy
 4. 主要網站資料擷取
 5. 備援網站資料擷取
-6. 最近一次有效資料，並標示 `fallback` 或 `stale`
+6. 最近一次有效資料，僅限資料性質允許，並標示 `source_role=last_valid`、`data_status=stale`
 7. `missing`
 
 每筆資料均須保留：
@@ -95,7 +95,7 @@ Fallback 順序固定為：
 - 原始回應
 - 驗證結果
 - 錯誤碼
-- Fallback 狀態
+- Fallback 狀態與原因
 
 ## 6. 資料狀態
 
@@ -109,6 +109,8 @@ Fallback 順序固定為：
 - `partial`
 - `estimated`
 - `insufficient_data`
+
+`fallback` 不是 `data_status`；是否使用 fallback 由 `fallback.used` 表示，來源種類由 `source_role` 表示。
 
 規則：
 
