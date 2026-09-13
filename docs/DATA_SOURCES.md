@@ -50,7 +50,9 @@
 
 來源角色：`primary_proxy`、`official_api_fallback`、`web_scraping_fallback`、`last_valid`。
 
-資料狀態：`fresh`、`delayed`、`stale`、`missing`、`invalid`、`partial`、`estimated`、`fallback`、`insufficient_data`。
+資料狀態：`fresh`、`delayed`、`stale`、`missing`、`invalid`、`partial`、`estimated`、`insufficient_data`。
+
+`fallback` 不屬於 `data_status`；是否使用 fallback 由 `fallback.used` 表示，來源種類由 `source_role` 表示。
 
 ## 7. 歷史比較與選擇權
 
