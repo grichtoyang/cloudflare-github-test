@@ -1,9 +1,15 @@
-# 每日盤前分析 V1.0
-# DATA_SCHEMA.md
+# 每日盤前分析 V1.0 — 資料結構規格
 
-## 1. 目的
+**文件名稱：** `DATA_SCHEMA.md`  
+**版本：** `V1.0`  
+**狀態：** `APPROVED`  
+**時區：** `Asia/Taipei`
 
-定義每日盤前分析資料封包的統一格式，供資料收集、驗證及後續分析使用。本文件不定義市場分析、交易訊號或風控規則。
+## 1. 文件目的
+
+定義每日盤前分析資料封包的統一格式，供資料收集、原始資料保存、正規化、驗證及後續分析使用。
+
+本文件只定義資料結構、來源追溯、資料狀態及完整性標記；不定義市場分析、交易訊號或風控規則。
 
 ## 2. 資料層級
 
@@ -14,12 +20,12 @@ Package
         └── Field
 ```
 
-- Package：一次完整的盤前資料封包。
-- Dataset：一組同類型資料。
-- Record：Dataset 中的一筆紀錄。
-- Field：Record 中的單一欄位。
+- **Package：** 一次完整的盤前資料封包。
+- **Dataset：** 一組同類型資料。
+- **Record：** Dataset 中的一筆紀錄。
+- **Field：** Record 中的單一欄位。
 
-## 3. Package
+## 3. Package 結構
 
 ```json
 {
@@ -43,17 +49,35 @@ Package
 }
 ```
 
-`package_status`：`complete`、`partial`、`failed`、`invalid`。
+### 3.1 Package Status
 
-`overall_status`：`fresh`、`delayed`、`stale`、`partial`、`invalid`、`missing`、`estimated`、`insufficient_data`。
+- `complete`：核心 Dataset 均可用。
+- `partial`：部分資料缺漏，但仍可交付。
+- `failed`：核心資料大幅失敗。
+- `invalid`：封包格式或必要欄位錯誤。
 
-狀態優先順序：
+### 3.2 Overall Data Status
+
+- `fresh`
+- `delayed`
+- `stale`
+- `missing`
+- `invalid`
+- `partial`
+- `estimated`
+- `fallback`
+- `insufficient_data`
+
+資料品質狀態優先順序：
 
 ```text
-invalid > failed > missing > insufficient_data > partial > stale > delayed > fresh
+invalid > missing > insufficient_data > partial
+> stale > delayed > fallback > estimated > fresh
 ```
 
-## 4. Dataset
+`package_status` 表示封包是否可交付；`overall_status` 表示資料品質。兩者不可混用。
+
+## 4. Dataset 結構
 
 ```json
 {
@@ -64,10 +88,16 @@ invalid > failed > missing > insufficient_data > partial > stale > delayed > fre
   "dataset_status": "available",
   "data_status": "fresh",
   "source": {
-    "source_name": "TAIFEX Cloudflare Proxy",
+    "source_name": "TAIFEX Proxy",
     "source_role": "primary_proxy",
+    "base_url": "https://taifex.grichtoyang.workers.dev",
     "endpoint": "/futures-price",
-    "retrieved_at": "ISO-8601"
+    "request_url": "https://taifex.grichtoyang.workers.dev/futures-price",
+    "request_time": "ISO-8601",
+    "response_time": "ISO-8601",
+    "http_status": 200,
+    "retrieved_at": "ISO-8601",
+    "raw_payload": null
   },
   "data_date": "YYYY-MM-DD",
   "data_timestamp": "ISO-8601 or null",
@@ -81,7 +111,7 @@ invalid > failed > missing > insufficient_data > partial > stale > delayed > fre
   },
   "fallback": {
     "used": false,
-    "reason": null,
+    "fallback_reason": null,
     "fallback_source": null,
     "fallback_retrieved_at": null
   },
@@ -89,9 +119,20 @@ invalid > failed > missing > insufficient_data > partial > stale > delayed > fre
 }
 ```
 
-`priority`：`core`、`important`、`optional`。
+### 4.1 Dataset Priority
 
-`dataset_status`：`available`、`partial`、`missing`、`failed`、`invalid`、`skipped`。
+- `core`：核心資料，缺失會影響主要分析。
+- `important`：重要資料，缺失會降低完整度。
+- `optional`：選配資料，不阻止整體分析。
+
+### 4.2 Dataset Status
+
+- `available`
+- `partial`
+- `missing`
+- `failed`
+- `invalid`
+- `skipped`
 
 ## 5. Dataset ID
 
@@ -114,18 +155,48 @@ industry_news
 company_earnings
 ```
 
-## 6. Source 與 fallback
+## 6. Source 與原始資料保存
 
-`source_role`：`primary_proxy`、`official_api`、`official_api_fallback`、`backup_api`、`web_source`、`last_valid`。
+### 6.1 Source Role
 
-規則：
+來源角色與 `DATA_SOURCES.md` 統一：
 
-1. 優先使用主要 Proxy。
-2. 主要來源失敗時才使用 fallback。
-3. fallback 必須記錄原因、來源及取得時間。
-4. 不可將 fallback 偽裝成主要來源。
-5. 舊資料須標記 `stale` 或 `last_valid`。
-6. 網頁資料不可直接視為官方即時資料。
+- `primary_proxy`
+- `official_api_fallback`
+- `web_scraping_fallback`
+- `last_valid`
+
+### 6.2 原始資料必要 metadata
+
+每筆原始資料至少保存：
+
+```text
+source
+source_role
+base_url
+endpoint
+request_url
+request_time
+response_time
+http_status
+raw_payload
+data_date
+data_timestamp
+data_status
+fallback_reason
+error_code
+validation_errors
+```
+
+### 6.3 來源規則
+
+1. 優先使用已驗證的主要 Proxy。
+2. 主要來源失敗時才使用官方 API 或其他既定 fallback。
+3. 每次來源切換都必須記錄 `fallback_reason`。
+4. fallback 不得偽裝成主要來源。
+5. 最近一次有效資料必須標記 `source_role=last_valid` 及 `data_status=stale`。
+6. 網站資料不得標示為官方即時資料。
+7. 原始回傳內容不得被正規化資料覆寫。
 
 ## 7. Record 與 Field
 
@@ -142,9 +213,33 @@ company_earnings
 }
 ```
 
-`field_status`：`valid`、`missing`、`invalid`、`estimated`、`stale`。
+### 7.1 Field Status
 
-`unit` 必須放在 Field 層級。常見單位：`point`、`contracts`、`shares`、`currency`、`percent`、`percentage_point`、`yield_percent`、`index`、`date`、`datetime`、`text`、`boolean`、`null`。
+- `valid`
+- `missing`
+- `invalid`
+- `estimated`
+- `stale`
+
+`unit` 必須放在 Field 層級。
+
+常見單位：
+
+```text
+point
+contracts
+shares
+currency
+percent
+percentage_point
+yield_percent
+index
+date
+datetime
+text
+boolean
+null
+```
 
 ## 8. 選擇權關鍵位
 
@@ -156,24 +251,51 @@ company_earnings
 - `gamma_flip`
 - `max_pain`
 
-無法取得時使用 `null`，不可使用 `0` 代表缺失；每個欄位可個別標記狀態。
+規則：
+
+- 無法取得時使用 `null`。
+- 不可使用 `0` 代表缺失。
+- 每個欄位可個別標記 `field_status`。
+- 必須區分近月、當週、到期月份、Call／Put、外資、造市商、OI、成交量、價格及 Gamma 資料。
+- 以上關鍵位僅為市場結構參考，不得單獨產生必然漲跌或交易結論。
 
 ## 9. Validation
 
+```json
+{
+  "schema_valid": true,
+  "content_valid": true,
+  "completeness": 1.0,
+  "validation_errors": []
+}
+```
+
 ```text
-completeness = 有效必要欄位數 ÷ 必要欄位總數
+completeness
+=
+有效必要欄位數 ÷ 必要欄位總數
 ```
 
 範圍為 `0.0～1.0`；選配欄位不計入核心完整度。
 
-## 10. Error / Incomplete Item
+驗證至少包括：
+
+- 結構
+- 欄位
+- 日期與時間
+- 數值與單位
+- 非空內容
+- 跨來源一致性
+- 原始回應可解析性
+
+## 10. Error 與 Incomplete Item
 
 ```json
 {
   "error_code": "SOURCE_UNAVAILABLE",
   "message": "Primary source unavailable",
   "dataset_id": "taifex_futures_price",
-  "source": "TAIFEX Cloudflare Proxy",
+  "source": "TAIFEX Proxy",
   "severity": "high",
   "retryable": true
 }
@@ -181,17 +303,26 @@ completeness = 有效必要欄位數 ÷ 必要欄位總數
 
 Severity：`low`、`medium`、`high`、`critical`。
 
-缺漏資料至少記錄：`dataset_id`、`missing_fields`、`reason`、`impact`。
+缺漏資料至少記錄：
+
+```text
+dataset_id
+missing_fields
+reason
+impact
+```
 
 ## 11. 時間規則
 
 - `analysis_date`：本次分析目標日期。
 - `data_date`：資料實際所屬日期。
 - `data_timestamp`：資料實際時間點。
-- `retrieved_at`：系統取得資料時間。
+- `request_time`：發出請求時間。
+- `response_time`：收到回應時間。
+- `retrieved_at`：系統完成取得資料時間。
 - `generated_at`：封包產生時間。
 
-所有時間使用 ISO-8601；台灣時間使用 `+08:00`；不可自行捏造不存在的時間。
+所有時間使用 ISO-8601；台灣時間使用 `+08:00`。不可自行捏造不存在的時間。
 
 ## 12. 完整性原則
 
@@ -203,12 +334,13 @@ Severity：`low`、`medium`、`high`、`critical`。
 6. 不可把估算值當成官方值。
 7. 不可將錯誤訊息當成正常資料。
 8. Dataset ID 不因來源切換而改變。
-9. 所有核心資料都必須有來源與狀態。
+9. 所有核心資料都必須有來源、日期及狀態。
+10. 本文件不包含市場分析與交易規則。
 
 ## 13. 文件狀態
 
 - 文件名稱：`DATA_SCHEMA.md`
 - 版本：`V1.0`
-- 狀態：正式定案
+- 狀態：`APPROVED`
 - 前置文件：`PROJECT_OVERVIEW.md`、`SYSTEM_ARCHITECTURE.md`、`DATA_SOURCES.md`
 - 下一份文件：`ANALYSIS_RULES.md`
