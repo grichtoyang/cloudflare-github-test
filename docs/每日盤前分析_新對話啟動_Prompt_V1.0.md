@@ -1,4 +1,4 @@
-# 每日盤前分析 V1.0 — 新對話啟動 Prompt（定案候選版）
+# 每日盤前分析 V1.0 — 新對話啟動 Prompt（檔名對齊修正版）
 
 ## 1. 任務與執行環境
 
@@ -7,6 +7,7 @@
 - GitHub Repository：<https://github.com/grichtoyang/cloudflare-github-test>
 - Owner：`grichtoyang`
 - Repository：`cloudflare-github-test`
+- 分支：`main`
 - 時區：`Asia/Taipei`
 - 主要分析引擎：ChatGPT
 - OpenAI API Key：不使用
@@ -40,22 +41,28 @@
 
 ## 3. 規格文件與資料讀取
 
-### 3.1 必須依序實際讀取的文件
+### 3.1 文件名稱對齊規則（重要修正）
 
-第一階段：
+本 Prompt 必須使用 GitHub `docs/` 目錄的實際檔名，不得再使用不存在的舊檔名。
 
-1. `01_PROJECT_SPEC.md`
-2. `02_DATA_SCHEMA.md`
-3. `03_DATA_SOURCE_SPEC.md`
-4. `04_ANALYSIS_RULES.md`
-5. `06_REPORT_TEMPLATE.md`
-6. `07_DASHBOARD_SPEC.md`
-7. `08_ERROR_AND_FALLBACK.md`
-8. `09_AUTOMATION_ARCHITECTURE.md`
+目前已確認的實際文件如下，必須依序讀取：
 
-第二階段最後讀取：
+1. `docs/PROJECT_OVERVIEW.md` — 對應原規格編號 `01_PROJECT_SPEC.md`
+2. `docs/DATA_SCHEMA.md` — 對應原規格編號 `02_DATA_SCHEMA.md`
+3. `docs/DATA_SOURCES.md` — 對應原規格編號 `03_DATA_SOURCE_SPEC.md`
+4. `docs/SYSTEM_ARCHITECTURE.md` — 系統架構補充規格
+5. `docs/每日盤前分析_新對話啟動_Prompt_V1.0.md` — 本啟動 Prompt，最後讀取並作為執行約束
 
-9. `05_CHATGPT_EXECUTION_PROMPT.md`
+下列原規格編號目前尚未在 `docs/` 目錄確認到對應實體文件，不得自行假設存在，也不得以相近檔名冒充：
+
+- `04_ANALYSIS_RULES.md` — 尚待建立或確認正式檔名
+- `05_CHATGPT_EXECUTION_PROMPT.md` — 尚待建立或確認正式檔名
+- `06_REPORT_TEMPLATE.md` — 尚待建立或確認正式檔名
+- `07_DASHBOARD_SPEC.md` — 尚待建立或確認正式檔名
+- `08_ERROR_AND_FALLBACK.md` — 尚待建立或確認正式檔名
+- `09_AUTOMATION_ARCHITECTURE.md` — 尚待建立或確認正式檔名
+
+若未來建立上述文件，必須先確認 GitHub 中的實際完整路徑，再更新本 Prompt；不得只修改顯示名稱而未同步實體檔案。
 
 每份文件都必須確認：
 
@@ -64,6 +71,7 @@
 - 是否讀取實際內容。
 - 完整檔案路徑。
 - 讀取失敗原因（如有）。
+- 是否為正式規格、補充規格或尚待建立文件。
 
 只有實際讀取完成，才可宣稱文件已載入。缺失或無法讀取的文件不得自行猜測或補寫；必須記錄其影響，並繼續處理其他可完成項目。
 
@@ -79,15 +87,21 @@
 
 必須檢查資料日期、產出時間、來源、單位與資料狀態。不存在或未成功讀取的資料不得視為已取得。
 
+目前資料目錄以 GitHub 實際路徑為準：
+
+- `data/manifests/`
+- `data/premarket/`
+- `data/snapshots/`
+- `data/taifex/`
+- `data/twse/`
+
 ---
 
 ## 4. 正式分析流程
 
-完成 Gate 0、文件讀取與資料檢查後，嚴格依照：
+完成 Gate 0、文件讀取與資料檢查後，嚴格依照已成功讀取的正式分析規格執行。若分析規則、報告模板或 Dashboard 規格文件尚未建立，必須明確標示影響，不得自行宣稱已符合未存在的規格。
 
-`05_CHATGPT_EXECUTION_PROMPT.md`
-
-執行完整流程：
+執行順序：
 
 1. 確認執行日期與資料日期。
 2. 執行資料品質檢查。
@@ -100,7 +114,7 @@
 9. 產出交易情境、支撐、壓力、失效條件與風險控管。
 10. 產出圖表資料。
 11. 產出 Markdown 報告。
-12. 產出 Dashboard JSON。
+12. 產出 Dashboard JSON；若規格不足，至少產出結構化 partial JSON。
 13. 記錄錯誤、fallback 與未完成項目。
 14. 執行最終驗收並回報狀態。
 
@@ -115,7 +129,7 @@
 - 分析信心。
 - 風險與限制。
 
-Dashboard 必須支援以下五個 Page Selection：
+Dashboard 必須支援以下五個 Page Selection；若 Dashboard 規格文件尚未建立，仍須依此產出一致的結構化欄位：
 
 - `spot`：現貨
 - `global_markets`：重要市場
@@ -236,5 +250,7 @@ Dashboard 規則：
 **開始執行後，無論發生任何錯誤，都不得提前停止；必須持續到至少產出 Markdown 報告、Dashboard JSON 或其結構化 partial 版本、錯誤紀錄、fallback 紀錄、未完成項目及最終狀態後，才能結束。**
 
 **只有實際開啟並讀取 GitHub 檔案內容，才可以宣稱該文件已載入。**
+
+**本 Prompt 所引用的文件名稱與路徑，必須以 GitHub `docs/` 目錄的實際檔名為準。**
 
 **只有實際完成並驗收後，才可以宣稱每日盤前分析已完成。**
