@@ -20,10 +20,10 @@ Package
         └── Field
 ```
 
-- **Package：** 一次完整的盤前資料封包。
-- **Dataset：** 一組同類型資料。
-- **Record：** Dataset 中的一筆紀錄。
-- **Field：** Record 中的單一欄位。
+- Package：一次完整的盤前資料封包。
+- Dataset：一組同類型資料。
+- Record：Dataset 中的一筆紀錄。
+- Field：Record 中的單一欄位。
 
 ## 3. Package 結構
 
@@ -49,33 +49,17 @@ Package
 }
 ```
 
-### 3.1 Package Status
+### Package Status
 
-- `complete`：核心 Dataset 均可用。
-- `partial`：部分資料缺漏，但仍可交付。
-- `failed`：核心資料大幅失敗。
-- `invalid`：封包格式或必要欄位錯誤。
+`complete`、`partial`、`failed`、`invalid`
 
-### 3.2 Overall Data Status
+### Overall Data Status
 
-- `fresh`
-- `delayed`
-- `stale`
-- `missing`
-- `invalid`
-- `partial`
-- `estimated`
-- `fallback`
-- `insufficient_data`
+`fresh`、`delayed`、`stale`、`missing`、`invalid`、`partial`、`estimated`、`insufficient_data`
 
-資料品質狀態優先順序：
+`fallback` 不屬於 `data_status`；是否使用 fallback 由 `fallback.used` 表示，來源種類由 `source_role` 表示。
 
-```text
-invalid > missing > insufficient_data > partial
-> stale > delayed > fallback > estimated > fresh
-```
-
-`package_status` 表示封包是否可交付；`overall_status` 表示資料品質。兩者不可混用。
+`package_status` 表示封包是否可交付；`overall_status` 表示資料品質，兩者不可混用。
 
 ## 4. Dataset 結構
 
@@ -119,20 +103,13 @@ invalid > missing > insufficient_data > partial
 }
 ```
 
-### 4.1 Dataset Priority
+### Dataset Priority
 
-- `core`：核心資料，缺失會影響主要分析。
-- `important`：重要資料，缺失會降低完整度。
-- `optional`：選配資料，不阻止整體分析。
+`core`、`important`、`optional`
 
-### 4.2 Dataset Status
+### Dataset Status
 
-- `available`
-- `partial`
-- `missing`
-- `failed`
-- `invalid`
-- `skipped`
+`available`、`partial`、`missing`、`failed`、`invalid`、`skipped`
 
 ## 5. Dataset ID
 
@@ -157,7 +134,7 @@ company_earnings
 
 ## 6. Source 與原始資料保存
 
-### 6.1 Source Role
+### Source Role
 
 來源角色與 `DATA_SOURCES.md` 統一：
 
@@ -166,7 +143,7 @@ company_earnings
 - `web_scraping_fallback`
 - `last_valid`
 
-### 6.2 原始資料必要 metadata
+### 原始資料必要欄位
 
 每筆原始資料至少保存：
 
@@ -188,7 +165,7 @@ error_code
 validation_errors
 ```
 
-### 6.3 來源規則
+### 來源規則
 
 1. 優先使用已驗證的主要 Proxy。
 2. 主要來源失敗時才使用官方 API 或其他既定 fallback。
@@ -213,33 +190,11 @@ validation_errors
 }
 ```
 
-### 7.1 Field Status
+### Field Status
 
-- `valid`
-- `missing`
-- `invalid`
-- `estimated`
-- `stale`
+`valid`、`missing`、`invalid`、`estimated`、`stale`
 
 `unit` 必須放在 Field 層級。
-
-常見單位：
-
-```text
-point
-contracts
-shares
-currency
-percent
-percentage_point
-yield_percent
-index
-date
-datetime
-text
-boolean
-null
-```
 
 ## 8. 選擇權關鍵位
 
@@ -278,15 +233,7 @@ completeness
 
 範圍為 `0.0～1.0`；選配欄位不計入核心完整度。
 
-驗證至少包括：
-
-- 結構
-- 欄位
-- 日期與時間
-- 數值與單位
-- 非空內容
-- 跨來源一致性
-- 原始回應可解析性
+驗證至少包括：結構、欄位、日期與時間、數值與單位、非空內容、跨來源一致性及原始回應可解析性。
 
 ## 10. Error 與 Incomplete Item
 
@@ -301,16 +248,9 @@ completeness
 }
 ```
 
-Severity：`low`、`medium`、`high`、`critical`。
+Severity：`low`、`medium`、`high`、`critical`
 
-缺漏資料至少記錄：
-
-```text
-dataset_id
-missing_fields
-reason
-impact
-```
+缺漏資料至少記錄：`dataset_id`、`missing_fields`、`reason`、`impact`
 
 ## 11. 時間規則
 
