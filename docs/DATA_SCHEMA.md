@@ -7,25 +7,9 @@
 
 ## 1. 文件目的
 
-定義每日盤前分析資料封包的統一格式，供資料收集、原始資料保存、正規化、驗證及後續分析使用。
+定義每日盤前分析資料封包的統一格式，供資料收集、原始資料保存、正規化、驗證及後續分析使用。本文件只定義資料結構、來源追溯、資料狀態及完整性標記；不定義市場分析、交易訊號或風控規則。
 
-本文件只定義資料結構、來源追溯、資料狀態及完整性標記；不定義市場分析、交易訊號或風控規則。
-
-## 2. 資料層級
-
-```text
-Package
-└── Dataset
-    └── Record
-        └── Field
-```
-
-- Package：一次完整的盤前資料封包。
-- Dataset：一組同類型資料。
-- Record：Dataset 中的一筆紀錄。
-- Field：Record 中的單一欄位。
-
-## 3. Package 結構
+## 2. Package 結構
 
 ```json
 {
@@ -49,19 +33,13 @@ Package
 }
 ```
 
-### Package Status
+`package_status` 只允許：`complete`、`partial`、`failed`、`invalid`。
 
-`complete`、`partial`、`failed`、`invalid`
+`overall_status` 只允許：`fresh`、`delayed`、`stale`、`missing`、`invalid`、`partial`、`estimated`、`insufficient_data`。
 
-### Overall Data Status
+`package_status` 表示封包交付狀態；`overall_status` 表示資料品質，兩者不可混用。`fallback` 不屬於資料狀態，是否使用 fallback 由 `fallback.used` 表示。
 
-`fresh`、`delayed`、`stale`、`missing`、`invalid`、`partial`、`estimated`、`insufficient_data`
-
-`fallback` 不屬於 `data_status`；是否使用 fallback 由 `fallback.used` 表示，來源種類由 `source_role` 表示。
-
-`package_status` 表示封包是否可交付；`overall_status` 表示資料品質，兩者不可混用。
-
-## 4. Dataset 結構
+## 3. Dataset 結構
 
 ```json
 {
@@ -103,17 +81,10 @@ Package
 }
 ```
 
-### Dataset Priority
+Dataset priority：`core`、`important`、`optional`。  
+Dataset status：`available`、`partial`、`missing`、`failed`、`invalid`、`skipped`。
 
-`core`、`important`、`optional`
-
-### Dataset Status
-
-`available`、`partial`、`missing`、`failed`、`invalid`、`skipped`
-
-## 5. Dataset ID
-
-Dataset ID 必須固定，不因來源或 fallback 改變。
+## 4. 固定 Dataset ID
 
 ```text
 twse_taiex_price
@@ -132,18 +103,46 @@ industry_news
 company_earnings
 ```
 
-## 6. Source 與原始資料保存
+Dataset ID 必須固定，不因來源或 fallback 改變。
 
-### Source Role
+## 5. Source Role 與 Fallback
 
-來源角色與 `DATA_SOURCES.md` 統一：
+來源角色統一使用以下值：
 
-- `primary_proxy`
-- `official_api_fallback`
-- `web_scraping_fallback`
-- `last_valid`
+```text
+primary_proxy
+official_api
+backup_api_proxy
+primary_web
+backup_web
+last_valid
+```
 
-### 原始資料必要欄位
+所有資料集固定依下列順序嘗試：
+
+```text
+1. primary_proxy
+2. official_api
+3. backup_api_proxy
+4. primary_web
+5. backup_web
+6. last_valid
+7. missing
+```
+
+只有上一層來源發生連線、HTTP、格式、日期、欄位、空值、數值、單位、時間或完整性問題時，才可切換下一層；每次切換都必須記錄 `fallback_reason`。來源不適用時也必須記錄不適用原因。
+
+最近一次有效資料只能在資料性質允許時使用，並標記：
+
+```text
+source_role=last_valid
+data_status=stale
+fallback.used=true
+```
+
+不得用舊資料冒充當日行情、成交量、法人流量、未平倉量或選擇權鏈。
+
+## 6. 原始資料保存
 
 每筆原始資料至少保存：
 
@@ -165,15 +164,7 @@ error_code
 validation_errors
 ```
 
-### 來源規則
-
-1. 優先使用已驗證的主要 Proxy。
-2. 主要來源失敗時才使用官方 API 或其他既定 fallback。
-3. 每次來源切換都必須記錄 `fallback_reason`。
-4. fallback 不得偽裝成主要來源。
-5. 最近一次有效資料必須標記 `source_role=last_valid` 及 `data_status=stale`。
-6. 網站資料不得標示為官方即時資料。
-7. 原始回傳內容不得被正規化資料覆寫。
+原始回傳內容不得被正規化資料覆寫。網站資料不得標示為官方即時資料。
 
 ## 7. Record 與 Field
 
@@ -190,11 +181,7 @@ validation_errors
 }
 ```
 
-### Field Status
-
-`valid`、`missing`、`invalid`、`estimated`、`stale`
-
-`unit` 必須放在 Field 層級。
+Field status：`valid`、`missing`、`invalid`、`estimated`、`stale`。`unit` 必須放在 Field 層級。
 
 ## 8. 選擇權關鍵位
 
@@ -206,13 +193,7 @@ validation_errors
 - `gamma_flip`
 - `max_pain`
 
-規則：
-
-- 無法取得時使用 `null`。
-- 不可使用 `0` 代表缺失。
-- 每個欄位可個別標記 `field_status`。
-- 必須區分近月、當週、到期月份、Call／Put、外資、造市商、OI、成交量、價格及 Gamma 資料。
-- 以上關鍵位僅為市場結構參考，不得單獨產生必然漲跌或交易結論。
+無法取得時使用 `null`，不可使用 `0` 代表缺失。必須區分近月、當週、到期月份、Call／Put、外資、造市商、OI、成交量、價格及 Gamma 資料。關鍵位僅為市場結構參考，不得單獨產生必然漲跌或交易結論。
 
 ## 9. Validation
 
@@ -225,15 +206,7 @@ validation_errors
 }
 ```
 
-```text
-completeness
-=
-有效必要欄位數 ÷ 必要欄位總數
-```
-
-範圍為 `0.0～1.0`；選配欄位不計入核心完整度。
-
-驗證至少包括：結構、欄位、日期與時間、數值與單位、非空內容、跨來源一致性及原始回應可解析性。
+`completeness` 範圍為 `0.0～1.0`，計算方式為有效必要欄位數除以必要欄位總數；選配欄位不計入核心完整度。驗證至少包括結構、欄位、日期與時間、數值與單位、非空內容、跨來源一致性及原始回應可解析性。
 
 ## 10. Error 與 Incomplete Item
 
@@ -248,21 +221,11 @@ completeness
 }
 ```
 
-Severity：`low`、`medium`、`high`、`critical`
-
-缺漏資料至少記錄：`dataset_id`、`missing_fields`、`reason`、`impact`
+Severity：`low`、`medium`、`high`、`critical`。缺漏資料至少記錄 `dataset_id`、`missing_fields`、`reason`、`impact`。
 
 ## 11. 時間規則
 
-- `analysis_date`：本次分析目標日期。
-- `data_date`：資料實際所屬日期。
-- `data_timestamp`：資料實際時間點。
-- `request_time`：發出請求時間。
-- `response_time`：收到回應時間。
-- `retrieved_at`：系統完成取得資料時間。
-- `generated_at`：封包產生時間。
-
-所有時間使用 ISO-8601；台灣時間使用 `+08:00`。不可自行捏造不存在的時間。
+`analysis_date` 為本次分析目標日期；`data_date` 為資料實際所屬日期；`data_timestamp` 為資料實際時間點；`request_time`、`response_time`、`retrieved_at` 及 `generated_at` 分別記錄請求、回應、取得完成及封包產生時間。所有時間使用 ISO-8601；台灣時間使用 `+08:00`。不可捏造不存在的時間。
 
 ## 12. 完整性原則
 
