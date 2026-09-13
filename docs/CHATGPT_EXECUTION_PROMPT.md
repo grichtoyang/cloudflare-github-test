@@ -4,25 +4,26 @@
 
 本文件是「每日盤前分析 V1.0」的 ChatGPT 實際執行控制文件。
 
-- 新對話啟動文件只負責啟動本專案，不重複定義本文件內容。
-- `SYSTEM_ARCHITECTURE.md` 負責系統總體架構與責任邊界。
-- `AUTOMATION_ARCHITECTURE.md` 負責自動化、人工啟動與 GitHub Actions 邊界。
+- `docs/Daily_Starter_Prompt.md` 負責啟動本專案，不重複定義本文件內容。
+- `docs/SYSTEM_ARCHITECTURE.md` 負責系統總體架構與責任邊界。
+- `docs/AUTOMATION_ARCHITECTURE.md` 負責自動化、人工啟動與 GitHub Actions 邊界。
 - GitHub 上的正式文件為唯一規格來源；不得以記憶、檔名或摘要代替實際讀取。
 
 ## 2. 執行前必讀文件
 
 啟動後必須逐一確認並讀取實際內容：
 
-1. `SYSTEM_ARCHITECTURE.md`
-2. `AUTOMATION_ARCHITECTURE.md`
-3. `01_PROJECT_SPEC.md`
-4. `02_DATA_SCHEMA.md`
-5. `03_DATA_SOURCE_SPEC.md`
-6. `04_ANALYSIS_RULES.md`
-7. `06_REPORT_TEMPLATE.md`
-8. `07_DASHBOARD_SPEC.md`
-9. `08_ERROR_AND_FALLBACK.md`
-10. 本文件 `05_CHATGPT_EXECUTION_PROMPT.md`
+1. `docs/Daily_Starter_Prompt.md`
+2. `docs/PROJECT_OVERVIEW.md`
+3. `docs/SYSTEM_ARCHITECTURE.md`
+4. `docs/DATA_SCHEMA.md`
+5. `docs/DATA_SOURCES.md`
+6. `docs/ANALYSIS_RULES.md`
+7. `docs/REPORT_TEMPLATE.md`
+8. `docs/DASHBOARD_SPEC.md`
+9. `docs/ERROR_AND_FALLBACK.md`
+10. `docs/AUTOMATION_ARCHITECTURE.md`
+11. 本文件 `docs/CHATGPT_EXECUTION_PROMPT.md`
 
 每份文件都要記錄：路徑、是否存在、是否成功讀取、讀取結果、錯誤原因。
 
@@ -64,13 +65,18 @@ Gate 0 未完成，不得宣稱完整分析已完成；但不得因此提前停�
 
 ## 6. 資料來源與 Fallback
 
-TWSE／TAIFEX 優先使用官方 API 或已驗證 Proxy：
+TWSE／TAIFEX 優先使用已驗證官方 Proxy／官方 API。TAIFEX Proxy：
 
 `https://taifex.grichtoyang.workers.dev/`
 
-其他來源依 `03_DATA_SOURCE_SPEC.md` 與 `08_ERROR_AND_FALLBACK.md` 執行。Fallback 順序：
+其他來源依 `docs/DATA_SOURCES.md` 與 `docs/ERROR_AND_FALLBACK.md` 執行。Fallback 順序固定為：
 
-官方來源 → 已驗證 Proxy → 備援來源 → 網站擷取 → 最近一次有效資料（必須標示 stale/fallback）→ `missing`。
+已驗證 Cloudflare Worker Proxy／官方 Open API
+→ 備援 API／Proxy
+→ 主要網站資料擷取
+→ 備援網站資料擷取
+→ 最近一次有效資料（僅資料性質允許，必須標示 `stale`／`last_valid`／`fallback`）
+→ `missing`
 
 任何 fallback 都必須記錄來源、原因、時間與影響。
 
@@ -102,7 +108,7 @@ Dashboard 是 V1.0 必要交付物，不是選配。必須產出單一 `dashboar
 
 可用狀態：
 
-`completed`、`completed_with_warnings`、`partial`、`failed_but_report_generated`、`blocked_by_access`。
+`completed`、`completed_with_warnings`、`partial`、`failed_but_report_generated`、`blocked_by_access`、`blocked_by_rule_conflict`。
 
 ## 9. GitHub 寫回
 
