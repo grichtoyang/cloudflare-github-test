@@ -1,18 +1,148 @@
 {
-  "schema_version": "1.0",
+  "schema_version": "1.1",
   "report_date": "2026-09-14",
   "generated_at": "2026-09-14T00:00:00+08:00",
   "runtime_date": "2026-09-14",
   "timezone": "Asia/Taipei",
   "report_status": "completed_with_warnings",
   "data_status": "partial",
-  "data_quality": {"overall":"partial","taifex":"recovered_via_blob_fallback","twse":"validated","missing_or_unconfirmed":["Max Pain","部分選擇權欄位","完整即時與夜盤欄位"]},
-  "sources": {"taifex":{"source_role":"last_valid","data_date":"2026-09-11","status":"recovered","fallback_used":true},"twse":{"source_role":"primary_proxy","data_date":"2026-09-11","status":"validated","fallback_used":false}},
-  "market":{"taiex":{"close":46184.85,"change":-755.64,"change_percent":-1.61,"turnover":762245189934,"advancing":2512,"declining":10346,"unchanged":542,"limit_up":13,"limit_down":60,"data_date":"2026-09-11","status":"validated"}},
-  "futures":{"near_month":{"close":46218,"settlement":46187,"high":46340,"low":45780,"open_interest":88464,"data_date":"2026-09-11","status":"recovered"},"institutional_oi":{"dealer":2802,"investment_trust":74687,"foreign":-85067,"status":"recovered","unit":"contracts"}},
-  "options":{"near_month":{"call_wall":48200,"put_wall":46000,"gamma_wall":45700,"gamma_flip":45541.84,"max_pain":null,"status":"partial","data_date":"2026-09-11"},"current_week":{"call_wall":null,"put_wall":null,"gamma_wall":null,"gamma_flip":null,"max_pain":null,"status":"insufficient_data"}},
-  "macro":{},"news":{},"summary":{"direction":"bearish_bias","regime":"undetermined","confidence":"limited","key_support":[46000,45700,45541.84],"key_resistance":[48200],"core_message":"前一交易日大盤明顯下跌；46,000、45,700與Gamma Flip為觀察區，需等待價格、成交量與結構確認，不以單一關鍵位直接作為交易訊號。"},
-  "warnings":["TAIFEX資料使用Blob fallback恢復。","部分選擇權欄位未完整確認。","未取得完整美股、債券、美元、亞洲市場與新聞資料。","本JSON不代表即時行情。"],
-  "incomplete_items":["Max Pain未完整驗證","當週選擇權關鍵位未完整驗證","宏觀市場資料未納入","新聞資料未納入","完整Dashboard端到端測試尚未完成"],
-  "fallbacks":[{"dataset":"TAIFEX snapshot","original_source":"GitHub Contents API","actual_source":"GitHub Blob API","reason":"Contents API returned empty content","status":"successful"}]
+  "data_quality": {
+    "overall": "partial",
+    "taifex": "validated_from_github_actions_snapshot",
+    "twse": "validated",
+    "missing_or_unconfirmed": [
+      "當週選擇權關鍵位",
+      "Max Pain",
+      "完整 OR 1 分鐘資料",
+      "宏觀市場資料",
+      "新聞資料"
+    ]
+  },
+  "sources": {
+    "github_actions_manifest": {
+      "source_role": "primary_pipeline",
+      "data_date": "2026-09-11",
+      "status": "validated",
+      "ready_for_analysis": true,
+      "published": true
+    },
+    "taifex": {
+      "source_role": "github_actions_snapshot",
+      "data_date": "2026-09-11",
+      "status": "validated",
+      "fallback_used": false
+    },
+    "twse": {
+      "source_role": "primary_proxy",
+      "data_date": "2026-09-11",
+      "status": "validated",
+      "fallback_used": false
+    }
+  },
+  "market": {
+    "taiex": {
+      "close": 46184.85,
+      "change": -755.64,
+      "change_percent": -1.61,
+      "turnover": 762245189934,
+      "advancing": 2512,
+      "declining": 10346,
+      "unchanged": 542,
+      "limit_up": 13,
+      "limit_down": 60,
+      "data_date": "2026-09-11",
+      "status": "validated"
+    }
+  },
+  "futures": {
+    "near_month": {
+      "contract_month": "202609",
+      "close": 46218,
+      "settlement": 46187,
+      "high": 46340,
+      "low": 45780,
+      "change": -651,
+      "change_percent": -1.39,
+      "regular_volume": 58137,
+      "after_hours_volume": 34522,
+      "total_volume": 92659,
+      "open_interest": 88464,
+      "data_date": "2026-09-11",
+      "status": "validated"
+    },
+    "institutional_oi": {
+      "dealer": 2802,
+      "investment_trust": 74687,
+      "foreign": -85067,
+      "total": -7578,
+      "status": "validated",
+      "unit": "contracts",
+      "data_date": "2026-09-11"
+    },
+    "institutional_trading": {
+      "regular": {
+        "dealer": 1380,
+        "investment_trust": 204,
+        "foreign": -368,
+        "total": 1216
+      },
+      "after_hours": {
+        "dealer": -674,
+        "investment_trust": 0,
+        "foreign": 1550,
+        "total": 876
+      }
+    }
+  },
+  "options": {
+    "near_month": {
+      "call_wall": 48200,
+      "put_wall": 46000,
+      "gamma_wall": 45700,
+      "gamma_flip": 45541.84,
+      "max_pain": null,
+      "status": "partial",
+      "data_date": "2026-09-11"
+    },
+    "current_week": {
+      "call_wall": null,
+      "put_wall": null,
+      "gamma_wall": null,
+      "gamma_flip": null,
+      "max_pain": null,
+      "status": "insufficient_data"
+    }
+  },
+  "summary": {
+    "direction": "bearish_bias",
+    "regime": "undetermined",
+    "confidence": "limited",
+    "key_support": [46000, 45700, 45541.84, 45780],
+    "key_resistance": [46187, 46218, 46340, 48200],
+    "core_message": "前一交易日大盤與台指期明顯下跌；外資期貨淨未平倉為 -85,067 口，且較前一日增加空方部位。短線偏空，但不追第一根急殺；優先觀察 46,187–46,218 分界區、46,340 突破壓力，以及 45,780 日盤低點。",
+    "trading_plan": {
+      "short_setup": "反彈至 46,187–46,218 後確認失敗，再考慮空單",
+      "bullish_confirmation": "站穩 46,340 且回測不破",
+      "bearish_confirmation": "跌破 45,780 後反抽無法收復",
+      "risk_control": "避免急殺追空；停損放在反彈結構高點或失效點"
+    }
+  },
+  "macro": {},
+  "news": {},
+  "warnings": [
+    "本報告使用 GitHub Actions 已發布的 pre-market manifest 與 TAIFEX snapshot。",
+    "選擇權當週關鍵位與 Max Pain 尚未完整驗證。",
+    "完整 OR 08:45–09:15 的 1 分鐘資料尚未確認。",
+    "未納入完整美股、債券、美元、亞洲市場與新聞資料。",
+    "本 JSON 不代表即時行情。"
+  ],
+  "incomplete_items": [
+    "Max Pain 未完整驗證",
+    "當週選擇權關鍵位未完整驗證",
+    "OR High／OR Low 未確認",
+    "宏觀市場資料未納入",
+    "新聞資料未納入",
+    "完整 Dashboard 端到端測試尚未完成"
+  ],
+  "fallbacks": []
 }
