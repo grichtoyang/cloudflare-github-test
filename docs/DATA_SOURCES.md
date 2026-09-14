@@ -17,7 +17,7 @@
 
 ## 2. 主要來源
 
-- ChatGPT 讀取 GitHub Actions 每日定時抓取的 Cloudflare Proxy 的 data 
+- ChatGPT 讀取 GitHub Actions 每日定時抓取的 Cloudflare Proxy 的 .json data 
 - 
 
 每個 endpoint 使用前必須驗證 HTTP 狀態、格式、可解析性、日期、時間、必要欄位、非空、數值、單位與完整性；未通過不得進入分析。
