@@ -207,3 +207,17 @@ https://github.com/grichtoyang/cloudflare-github-test
 - Gate 0 尚未通過
 
 此時必須清楚回報阻塞原因，不得假稱流程完成。
+
+---
+
+## 9. TWSE 市場廣度資料判讀要求
+
+每日盤前分析讀取 TWSE Proxy 回傳的 `advance_decline` 資料時：
+
+1. 只使用「股票」欄位。
+2. 完全忽略「整體市場」欄位。
+3. 不得將「整體市場」納入上漲家數、下跌家數、漲跌比、漲停／跌停統計或市場廣度判讀。
+4. 報告不需要呈現「整體市場」數據。
+5. 若分析上櫃股票，必須另行取得 TPEX 官方上櫃股票資料；不得以 TWSE「整體市場」代替。
+
+此規則只涉及 GitHub Actions 傳入 JSON 後的資料判讀，不要求修改 TWSE Proxy。
