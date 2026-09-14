@@ -4,10 +4,10 @@
 
 - Repository: `grichtoyang/cloudflare-github-test`
 - Branch: `main`
-- STEP execution prompt:
-  https://github.com/grichtoyang/cloudflare-github-test/blob/main/docs/CHATGPT_STEP_EXECUTION_PROMPT.md
-- This starter prompt:
-  https://github.com/grichtoyang/cloudflare-github-test/blob/main/docs/Daily_STEP_Starter_Prompt.md
+- STEP execution prompt（GitHub API）:
+  `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/CHATGPT_STEP_EXECUTION_PROMPT.md?ref=main`
+- This starter prompt（GitHub API）:
+  `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/Daily_STEP_Starter_Prompt.md?ref=main`
 
 ## 2. Execution Objective
 
@@ -29,20 +29,42 @@
 
 優先讀取本次對話中實際上傳的檔案。
 
-### Priority 2 — GitHub Repository
+### Priority 2 — GitHub Repository（必須使用 GitHub API）
 
-若附件不存在，改由下列 GitHub Repository 讀取：
+若附件不存在，改由 GitHub REST API 讀取下列 Repository：
 
-- Repository: `grichtoyang/cloudflare-github-test`
+- Owner: `grichtoyang`
+- Repository: `cloudflare-github-test`
 - Branch: `main`
 
-主要文件：
+GitHub API 根網址：
 
-- `docs/CHATGPT_STEP_EXECUTION_PROMPT.md`
-- `docs/ANALYSIS_RULES.md`
-- `docs/DATA_SOURCES.md`
-- `docs/NOTICE.md`
-- 其他由 STEP 執行 Prompt 指定的必要文件
+`https://api.github.com`
+
+Repository Contents API 格式：
+
+`https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/{path}?ref=main`
+
+主要文件的 API 讀取位置：
+
+- `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/CHATGPT_STEP_EXECUTION_PROMPT.md?ref=main`
+- `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/ANALYSIS_RULES.md?ref=main`
+- `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/DATA_SOURCES.md?ref=main`
+- `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/NOTICE.md?ref=main`
+- 其他由 STEP 執行 Prompt 指定的必要文件，均須依相同 API 格式讀取。
+
+#### GitHub API 讀取規則
+
+1. 不得使用 GitHub 網頁版 `github.com/.../blob/...` 頁面作為檔案讀取方式。
+2. 必須使用 GitHub REST API 的 Repository Contents endpoint 取得檔案內容。
+3. API 回傳的 `content` 欄位通常為 Base64 編碼，必須先 Base64 解碼後，才能讀取文字檔案。
+4. 必須確認 API 回傳的 `type` 為 `file`，並檢查 HTTP 狀態碼及回傳內容。
+5. 若檔案位於子目錄，必須使用完整的 repository-relative path。
+6. 若需要列出目錄內容，使用：
+   `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/{directory}?ref=main`
+7. API 回傳 404 且明確表示資源不存在時，才可標示 `MISSING`；其他連線、權限、限流、格式或解析問題，必須標示 `READ_FAILED` 或 `BLOCKED`。
+8. GitHub API 讀取失敗時，必須依本 Prompt 的 fallback 與錯誤處理規則繼續執行，不得直接停止。
+9. 每次讀取 GitHub 文件時，必須記錄 API endpoint、Repository、Branch、File path、HTTP 狀態、讀取狀態，以及是否成功解碼與解析。
 
 ### Priority 3 — 明確錯誤狀態
 
