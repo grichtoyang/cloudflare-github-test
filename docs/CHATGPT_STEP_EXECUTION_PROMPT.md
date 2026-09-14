@@ -37,7 +37,7 @@
 4. 主要來源 Retry 失敗後，依規則啟用可行 fallback；
 5. 所有 Retry／Fallback 完成前，不得直接標記 `PARTIAL`、`BLOCKED` 或 `FAIL`，也不得直接終止整體流程。
 
-只有在所有可行 Retry／Fallback 均完成後，才可依實際結果標記 `PARTIAL`、`BLOCKED` 或 `FAIL`。
+只有在所有可行 Retry／Fallback 完成後，才可依實際結果標記 `PARTIAL`、`BLOCKED` 或 `FAIL`。
 
 不得只取得檔名、URL、SHA、metadata、HTTP 200 或部分回應就標記成功。只有完整實際內容／資料通過驗證，才能標記 `READ_SUCCESS`、`DATA_SUCCESS` 或 `VALIDATED`。
 
@@ -76,7 +76,34 @@
 
 `BLOCKED` 不等於 `MISSING`，不得互相替換，也不得把 `BLOCKED` 改寫成 `PASS` 或 `COMPLETED`。
 
-## 6. 市場資料日期有效性判定
+## 6. 市場資料日期與交易日有效性判定
+
+### 6.1 執行日期與交易日必須實際驗證
+
+鎖定 `Asia/Taipei` 執行日期後，必須實際查詢並驗證該日是否為台灣交易日，不得只因日期已鎖定就將交易日判定標記為 `PASS`。
+
+交易日驗證必須檢查：
+
+1. 執行日期、星期與台灣時區 `Asia/Taipei`；
+2. 台灣交易日曆、休市日或可靠官方交易日資料；
+3. 查詢是否成功取得實際結果；
+4. Retry／Fallback 是否已完成；
+5. 最終判定是否有可追溯證據。
+
+交易日狀態不得混用：
+
+- `PENDING`：尚未開始驗證；
+- `RETRY_REQUIRED`：驗證失敗，尚未完成必要 Retry／Fallback；
+- `VALID_TRADING_DAY`：已實際驗證為台灣交易日；
+- `VALID_NON_TRADING_DAY`：已實際驗證為非交易日；
+- `MISSING`：交易日資料來源不存在，或所有 Retry／Fallback 均完成後仍無法取得任何可用判定資料；
+- `BLOCKED`：來源已確認存在，但所有讀取、Retry／Fallback 後仍無法取得必要內容。
+
+**「尚未實際驗證」不得標記為 `MISSING`。**
+
+若交易日查詢尚未執行、正在執行、讀取中斷或尚未完成 Retry，狀態只能是 `PENDING`、`RETRY_REQUIRED` 或 `BLOCKED`，不得是 `MISSING`，更不得是 `PASS`。
+
+### 6.2 市場資料日期不得直接以執行日期比較
 
 資料日期早於執行日期時，不得直接標記為 `OLD_DATE`。必須先判斷該市場在目前執行時間下，是否已完成當日交易、收盤或資料公布。
 
@@ -89,7 +116,7 @@
 5. 目前時點下該來源可提供的最新合法資料日期；
 6. 資料是否完整、欄位是否齊全及是否通過驗證。
 
-### 6.1 合法上一交易日資料
+### 6.3 合法上一交易日資料
 
 例如台灣時間星期一早上，前一個完整交易日為星期五：
 
@@ -100,7 +127,7 @@
 
 此類資料不得僅因日期早於執行日期，就標記為 `OLD_DATE`。
 
-### 6.2 日期狀態
+### 6.4 日期狀態
 
 可使用下列狀態：
 
@@ -108,8 +135,10 @@
 - `VALID_PREVIOUS_SESSION`：目前尚未完成當日交易／收盤，使用上一個合法交易時段資料；
 - `INTRADAY_VALID`：當日盤中資料，且已標明資料時間；
 - `OLD_DATE`：依正常公布時程，應已取得更新資料，但實際資料仍停留在更早日期；
-- `MISSING`：來源不存在或所有取得方式均未取得資料；
-- `INSUFFICIENT_DATA`：取得資料但不足以完成該項分析。
+- `MISSING`：來源不存在，或所有取得方式、Retry／Fallback 均完成後仍未取得資料；
+- `INSUFFICIENT_DATA`：取得資料但不足以完成該項分析；
+- `PENDING`：尚未完成資料日期有效性判定；
+- `RETRY_REQUIRED`：日期或資料驗證失敗，尚未完成必要 Retry／Fallback。
 
 只有在「依正常公布時程應已更新，但實際資料仍停留在更早日期」時，才可標記 `OLD_DATE`。
 
