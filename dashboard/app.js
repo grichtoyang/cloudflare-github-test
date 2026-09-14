@@ -1,4 +1,4 @@
-const DATA_URL='data/dashboard_latest.json';
+const DATA_URL='data/dashboard_latest.json?v=20260914-2';
 const pages={summary:'總結',spot:'現貨',futures:'期貨',options:'選擇權',global_markets:'重要市場'};
 let data=null,current='summary';
 const $=s=>document.querySelector(s);
