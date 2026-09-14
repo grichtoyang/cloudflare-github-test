@@ -99,7 +99,6 @@ ChatGPT 必須依照本文件逐階段執行，不得跳過階段、提前宣稱
 4. 已確認目前執行日期、時間與時區。
 5. 已確認目前可執行的 STEP。
 6. 已完成必要的 Retry／Fallback。
-7. 已產生 Gate 0 結果。
 
 ### STEP 2：資料抓取與資料品質檢查
 
@@ -187,7 +186,7 @@ ChatGPT 必須依照本文件逐階段執行，不得跳過階段、提前宣稱
 4. 所有資料日期與時間是否記錄。
 5. 所有 Retry／Fallback 是否完成。
 6. 所有缺失與錯誤是否列出。
-7. 報告是否符合 `REPORT_TEMPLATE.md`。
+7. 報告是否符合 `REPORT_TEMPLATE.md` 、報告達成率是否100%。
 8. Dashboard／摘要是否符合 `DASHBOARD_SPEC.md`。
 9. 是否存在猜測值或未驗證資料。
 10. Markdown 報告是否實際產出。
