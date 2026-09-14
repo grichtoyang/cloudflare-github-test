@@ -201,17 +201,16 @@ ChatGPT 必須依照本文件逐階段執行，不得跳過階段、提前宣稱
 
 必要文件應依下列順序讀取：
 
-1. `docs/Daily_STEP_Starter_Prompt.md`
-2. `docs/CHATGPT_STEP_EXECUTION_PROMPT.md`
-3. `docs/PROJECT_OVERVIEW.md`
-4. `docs/SYSTEM_ARCHITECTURE.md`
-5. `docs/DATA_SCHEMA.md`
-6. `docs/DATA_SOURCES.md`
-7. `docs/ANALYSIS_RULES.md`
-8. `docs/REPORT_TEMPLATE.md`
-9. `docs/DASHBOARD_SPEC.md`
-10. `docs/ERROR_AND_FALLBACK.md`
-11. `docs/AUTOMATION_ARCHITECTURE.md`
+1. `docs/CHATGPT_STEP_EXECUTION_PROMPT.md`
+2. `docs/PROJECT_OVERVIEW.md`
+3. `docs/SYSTEM_ARCHITECTURE.md`
+4. `docs/DATA_SCHEMA.md`
+5. `docs/DATA_SOURCES.md`
+6. `docs/ANALYSIS_RULES.md`
+7. `docs/REPORT_TEMPLATE.md`
+8. `docs/DASHBOARD_SPEC.md`
+9. `docs/ERROR_AND_FALLBACK.md`
+10. `docs/AUTOMATION_ARCHITECTURE.md`
 
 所有 GitHub 文件必須優先透過 GitHub API 讀取；若讀取失敗，必須依第 3.1 節執行至少 3 次 Retry，必要時使用 fallback。
 
