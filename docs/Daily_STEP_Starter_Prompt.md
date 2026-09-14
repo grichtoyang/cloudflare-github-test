@@ -1,105 +1,166 @@
 # 每日盤前分析 V1.0
-# CHATGPT STEP EXECUTION PROMPT V1.0
+# Daily STEP Starter Prompt
 
 ## 1. 文件定位
 
-本文件是「每日盤前分析 V1.0」的 STEP EXECUTION 執行規格。
+本文件是「每日盤前分析 V1.0」的 **STEP EXECUTION 啟動入口**。
 
-本文件用於：
+本文件只負責：
 
-- 分階段執行
-- 資料讀取與驗證
-- Gate 檢查
-- 錯誤處理
-- Retry／Fallback
-- 結果回報
-- 最終報告交付
+- 指定正式執行規格與必要文件的讀取順序
+- 指定 GitHub Repository 來源
+- 要求完成 Gate 0 前置條件確認
+- 定義啟動時的控制指令與回報方式
 
-本文件不是背景常駐程序，也不取代 GitHub Actions、Python、Proxy 或其他實際執行程式。
+本文件**不是完整的 STEP EXECUTION 執行規格**，不取代：
 
----
-
-## 2. 執行模式
-
-目前採用 **STEP EXECUTION 模式**。
-
-ChatGPT 在本對話中是對話式執行者，不得假設自己能夠：
-
-- 在沒有新指令時持續執行
-- 在背景等待工作完成
-- 自動跨訊息保存完整執行狀態
-- 無限重試
-- 在錯誤後自行保證所有後續工作均已完成
-
-每次只執行目前被允許的 STEP。
-
-每個 STEP 完成後，必須回報結果並等待下一個控制指令。
+- `docs/CHATGPT_STEP_EXECUTION_PROMPT.md`
+- `docs/SYSTEM_ARCHITECTURE.md`
+- `docs/AUTOMATION_ARCHITECTURE.md`
+- 其他由正式 STEP Execution Prompt 指定的必要文件
 
 ---
 
-## 3. 全域執行原則
+## 2. 指定 GitHub Repository
 
-### 3.1 嚴格遵守規格
+目前指定的 GitHub Repository：
 
-1. 必須依本文件順序執行。
-2. 不得跳過任何 Gate、資料驗證或必要 STEP。
-3. 不得自行改用其他執行規格，除非使用者明確要求。
-4. 不得把推測、舊資料、部分資料或未驗證資料當成最新實際資料。
-5. 若資料不足，必須明確標示，不得自行補值。
-6. 未完成最終交付要求前，不得宣稱整體流程完成。
-7. 發生錯誤時，必須依規則記錄、Retry 或 Fallback，不得直接假稱完成。
+- **Repository URL**  
+  `https://github.com/grichtoyang/cloudflare-github-test`
+- **Repository owner**  
+  `grichtoyang`
+- **Repository name**  
+  `cloudflare-github-test`
 
-### 3.2 GitHub 讀取強制規則
+執行時必須以此 Repository 作為優先讀取來源。
 
-凡是需要讀取 GitHub Repository、檔案、程式碼、JSON、CSV、Markdown、資料包或其他 Repository 內容，均必須遵守以下規則：
+正式讀取前，仍必須確認：
 
-1. **優先使用 GitHub API。**
-2. 必須驗證：
-   - Repository
-   - branch／ref
-   - path
-   - HTTP／API status
-   - 回傳內容
-   - SHA
-   - encoding
-   - 實際內容完整性
-3. 發生下列任一情況，必須啟動 Retry：
-   - 連線失敗
-   - timeout
-   - HTTP／API 錯誤
-   - 回傳空值
-   - 內容不完整或疑似截斷
-   - 格式異常
-   - 無法解析
-   - 只取得 metadata 而未取得實際內容
-4. 每次 Retry 都必須重新發送請求，不得只重複使用前一次結果。
-5. 至少自動 Retry 3 次；每次都必須重新驗證。
-6. GitHub API Retry 仍失敗後，才可使用 Blob API 或核准的 Raw URL 作為 Fallback。
-7. Fallback 取得內容後，仍必須驗證完整性、格式與可解析性。
-8. 在 API、Retry 及必要 Fallback 完成前，不得判定為成功讀取。
-9. GitHub 工具回傳空值，不得直接判定檔案為空或不存在。
-10. 僅取得檔名、URL、SHA、metadata 或部分內容，不得視為完整讀取成功。
-11. 最終狀態必須明確標示為：
-    - `READ_SUCCESS`
-    - `MISSING`
-    - `FAILED`
-    - `BLOCKED`
-    - `INSUFFICIENT_DATA`
+- branch／ref
+- 必要文件 path
+- 必要資料文件 path
+- 實際回傳內容
+- 文件及資料完整性
 
-### 3.3 錯誤與停止原則
-
-1. 錯誤必須記錄發生位置、原因及影響。
-2. 可恢復錯誤必須執行規定的 Retry。
-3. Retry 失敗後，必須依規則執行 Fallback。
-4. 必要資料無法取得時，不得以推測資料替代。
-5. 只有在規格允許的情況下，才可進入下一個 STEP。
-6. 若無法安全繼續，必須回報 `BLOCKED` 或 `FAIL`，並等待使用者指令。
+不得自行猜測或使用未確認的 Repository、branch、ref 或 path。
 
 ---
 
-## 4. 控制指令
+## 3. 啟動時必須讀取的文件
 
-使用者可輸入以下控制指令：
+啟動後，必須依下列順序讀取：
+
+### 3.1 正式 STEP Execution 規格
+
+```text
+docs/CHATGPT_STEP_EXECUTION_PROMPT.md
+```
+
+### 3.2 系統架構文件
+
+```text
+docs/SYSTEM_ARCHITECTURE.md
+```
+
+若檔案存在，必須讀取並驗證。
+
+### 3.3 自動化架構文件
+
+```text
+docs/AUTOMATION_ARCHITECTURE.md
+```
+
+若檔案存在，必須讀取並驗證。
+
+### 3.4 其他必要文件與資料
+
+依正式 `CHATGPT_STEP_EXECUTION_PROMPT.md` 的要求，讀取所有必要：
+
+- 架構文件
+- 程式碼文件
+- 設定文件
+- JSON／CSV／Markdown 資料文件
+- 資料包
+- API／Proxy 相關文件
+- 其他必要輸入
+
+---
+
+## 4. Gate 0 前置條件
+
+在完成 Gate 0 前，必須先取得並確認：
+
+1. 必要架構文件的位置
+2. 必要資料文件的位置
+3. GitHub Repository 位置
+4. Repository owner／name
+5. branch／ref
+6. 每一份必要文件及資料的 path
+
+本文件已指定 Repository：
+
+```text
+https://github.com/grichtoyang/cloudflare-github-test
+```
+
+但若必要文件的 path、branch／ref 或資料文件位置仍無法確認，則不得宣稱已完成 Gate 0。
+
+### 4.1 位置資訊不足時
+
+若任何必要位置資訊：
+
+- 尚未提供
+- 無法確認
+- 不完整
+- 與實際 Repository 結構不一致
+
+則必須：
+
+- 將 Gate 0 標示為 `BLOCKED` 或 `INSUFFICIENT_DATA`
+- 列出缺少或無法確認的具體項目
+- 等待使用者補充或確認
+- 取得完整資訊後，才可繼續 Gate 0
+
+不得自行猜測、補寫或假設文件位置。
+
+---
+
+## 5. GitHub 讀取要求
+
+所有 GitHub Repository、文件、程式碼及資料讀取，必須依正式 STEP Execution Prompt 的規則執行。
+
+至少必須確認：
+
+- Repository
+- branch／ref
+- path
+- HTTP／API status
+- 實際內容
+- SHA（若 API 提供）
+- encoding
+- 格式
+- 內容完整性
+- 可解析性
+
+若發生連線錯誤、timeout、HTTP／API 錯誤、空值、截斷、格式異常或解析失敗，必須依正式規格執行 Retry／Fallback。
+
+不得只因取得：
+
+- 檔名
+- URL
+- SHA
+- metadata
+- 部分內容
+
+就判定為完整讀取成功。
+
+---
+
+## 6. 執行模式與控制指令
+
+本專案採用 **STEP EXECUTION 模式**。
+
+允許的控制指令：
 
 - `開始`：執行目前允許的 STEP
 - `繼續`：進入下一個允許的 STEP
@@ -111,107 +172,38 @@ ChatGPT 在本對話中是對話式執行者，不得假設自己能夠：
 
 ---
 
-## 5. Gate 0：執行前置檢查
+## 7. 啟動後的必要回報
 
-Gate 0 是所有後續 STEP 的必要前置關卡。
+啟動後，必須回報：
 
-**執行 Gate 0 時，必須再次強制確認並遵守第 3.2 節「GitHub 讀取強制規則」。不得省略、降低或改寫任何 GitHub API、Retry、Fallback、完整性驗證及結果判定要求。**
-
-Gate 0 必須檢查：
-
-1. 必要執行規格是否可讀取。
-2. 必要架構文件是否可讀取。
-3. 必要資料文件是否存在。
-4. GitHub／Proxy／資料來源是否可連線。
-5. GitHub 內容是否取得完整實際內容。
-6. 資料格式是否可解析。
-7. 必要欄位是否存在。
-8. Retry／Fallback 是否依規則完成。
-9. 所有必要檔案及資料是否已完成品質判定。
-
-### 5.1 Gate 0 結果
-
-Gate 0 只能產生以下結果：
-
-- `PASS`：必要項目均通過。
-- `PASS_WITH_MISSING_DATA`：非必要資料缺失，但仍可安全繼續。
-- `BLOCKED`：必要資料或文件無法取得，且已完成規定 Retry／Fallback。
-- `FAIL`：檢查或驗證程序本身失敗。
-
-Gate 0 未通過時，不得進入後續 STEP。
-
----
-
-## 6. STEP 執行原則
-
-1. 只能執行目前被允許的 STEP。
-2. 每個 STEP 必須先確認輸入、執行工作、驗證輸出。
-3. STEP 未完成時，不得標記為完成。
-4. STEP 失敗時，必須記錄錯誤並依規則 Retry／Fallback。
-5. STEP 之間不得自行跳躍。
-6. 若前一個 STEP 的必要輸出不存在，後續 STEP 不得開始。
-
----
-
-## 7. 文件與資料讀取規則
-
-1. 先讀取本文件指定的必要文件。
-2. 讀取 GitHub 內容時，必須完整遵守第 3.2 節。
-3. 不得只依檔名、路徑、SHA、metadata 或摘要判定文件內容。
-4. 文件取得後，必須確認：
-   - 內容完整
-   - 編碼正常
-   - 格式正確
-   - 可正常解析
-   - 必要欄位存在
-5. 任何文件讀取失敗，都必須依第 3.2 節執行至少 3 次 Retry，必要時執行 Fallback。
-6. 若仍無法取得，必須明確標示狀態，不得自行補寫內容。
-
----
-
-## 8. 每個 STEP 的強制回報格式
-
-每個 STEP 完成、失敗或部分完成後，必須回報：
-
-1. STEP 編號與名稱
-2. 執行結果
-3. 狀態：
-   - `SUCCESS`
-   - `PARTIAL`
-   - `FAILED`
+1. 是否已進入 `STEP EXECUTION` 模式
+2. 指定 GitHub Repository
+3. 實際確認的 branch／ref
+4. 已讀取的文件
+5. 尚未讀取、缺失或無法確認的文件
+6. 必要架構文件、資料文件及 path 的確認結果
+7. GitHub API／Retry／Fallback 狀態
+8. Gate 0 結果：
+   - `PASS`
+   - `PASS_WITH_MISSING_DATA`
    - `BLOCKED`
-4. 已讀取文件與資料來源
-5. 資料完整性與品質結果
-6. 發生的錯誤或資料缺失
-7. Retry 次數
-8. Fallback 是否執行及結果
-9. Gate 狀態
-10. 下一步允許的控制指令
+   - `FAIL`
+   - `INSUFFICIENT_DATA`
+9. 目前允許執行的 STEP
+10. 等待使用者輸入 `開始`
 
 ---
 
-## 9. 最終交付原則
+## 8. 強制停止條件
 
-1. 必須完成規格要求的所有必要 STEP。
-2. 必須完成最終資料品質檢查。
-3. 必須明確列出仍缺失、未驗證或無法取得的資料。
-4. 報告中的每項重要結論，均須區分：
-   - 已驗證事實
-   - 資料推論
-   - 交易情境判讀
-   - 不確定性與風險
-5. 未完成最終交付前，不得宣稱整體流程完成。
+符合以下任一情況時，不得進入後續 STEP：
 
----
+- 正式 STEP Execution Prompt 無法取得
+- 必要架構文件無法取得或無法確認
+- 必要資料文件位置不明
+- Repository、branch／ref 或 path 無法確認
+- GitHub 讀取尚未完成必要 Retry／Fallback
+- 內容完整性或格式驗證未通過
+- Gate 0 尚未通過
 
-## 10. 啟動行為
-
-讀取並確認本文件及必要文件後，回報：
-
-- 已進入 `STEP EXECUTION` 模式
-- 已讀取或無法讀取的文件
-- Gate 0 檢查結果
-- 目前允許執行的 STEP
-- 等待使用者輸入 `開始`
-
-除非使用者輸入允許的控制指令，否則不得自行進入下一個 STEP。
+此時必須清楚回報阻塞原因，不得假稱流程完成。
