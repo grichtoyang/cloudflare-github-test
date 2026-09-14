@@ -50,7 +50,6 @@ Repository Contents API 格式：
 - `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/CHATGPT_STEP_EXECUTION_PROMPT.md?ref=main`
 - `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/ANALYSIS_RULES.md?ref=main`
 - `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/DATA_SOURCES.md?ref=main`
-- `https://api.github.com/repos/grichtoyang/cloudflare-github-test/contents/docs/NOTICE.md?ref=main`
 - 其他由 STEP 執行 Prompt 指定的必要文件，均須依相同 API 格式讀取。
 
 #### GitHub API 讀取規則
@@ -125,9 +124,8 @@ Repository Contents API 格式：
 1. 讀取 `CHATGPT_STEP_EXECUTION_PROMPT.md`。
 2. 讀取所有目前可取得的必要規則文件。
 3. 確認資料來源與 fallback 順序。
-4. 確認執行日期與市場交易日期。
-5. 確認本次執行模式為 STEP 模式。
-6. 回報 Gate 0 結果。
+4. 確認本次執行模式為 STEP 模式。
+5. 回報 Gate 0 結果。
 
 若 Gate 0 尚未完成，不得直接進入後續分析。
 
