@@ -26,6 +26,7 @@
 
 - TAIFEX：`https://openapi.taifex.com.tw/`
 - TWSE：`https://openapi.twse.com.tw/`
+- TPEX：`https://www.tpex.org.tw/openapi/`    
 
 官方 API 必須執行與 Proxy 相同的驗證，不得省略檢查。
 
