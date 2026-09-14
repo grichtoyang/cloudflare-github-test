@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "report_date": "2026-09-14",
+  "generated_at": "2026-09-14T00:00:00+08:00",
+  "runtime_date": "2026-09-14",
+  "timezone": "Asia/Taipei",
+  "report_status": "completed_with_warnings",
+  "data_status": "partial",
+  "data_quality": {"overall":"partial","taifex":"recovered_via_blob_fallback","twse":"validated","missing_or_unconfirmed":["Max Pain","部分選擇權欄位","完整即時與夜盤欄位"]},
+  "sources": {"taifex":{"source_role":"last_valid","data_date":"2026-09-11","status":"recovered","fallback_used":true},"twse":{"source_role":"primary_proxy","data_date":"2026-09-11","status":"validated","fallback_used":false}},
+  "market":{"taiex":{"close":46184.85,"change":-755.64,"change_percent":-1.61,"turnover":762245189934,"advancing":2512,"declining":10346,"unchanged":542,"limit_up":13,"limit_down":60,"data_date":"2026-09-11","status":"validated"}},
+  "futures":{"near_month":{"close":46218,"settlement":46187,"high":46340,"low":45780,"open_interest":88464,"data_date":"2026-09-11","status":"recovered"},"institutional_oi":{"dealer":2802,"investment_trust":74687,"foreign":-85067,"status":"recovered","unit":"contracts"}},
+  "options":{"near_month":{"call_wall":48200,"put_wall":46000,"gamma_wall":45700,"gamma_flip":45541.84,"max_pain":null,"status":"partial","data_date":"2026-09-11"},"current_week":{"call_wall":null,"put_wall":null,"gamma_wall":null,"gamma_flip":null,"max_pain":null,"status":"insufficient_data"}},
+  "macro":{},"news":{},"summary":{"direction":"bearish_bias","regime":"undetermined","confidence":"limited","key_support":[46000,45700,45541.84],"key_resistance":[48200],"core_message":"前一交易日大盤明顯下跌；46,000、45,700與Gamma Flip為觀察區，需等待價格、成交量與結構確認，不以單一關鍵位直接作為交易訊號。"},
+  "warnings":["TAIFEX資料使用Blob fallback恢復。","部分選擇權欄位未完整確認。","未取得完整美股、債券、美元、亞洲市場與新聞資料。","本JSON不代表即時行情。"],
+  "incomplete_items":["Max Pain未完整驗證","當週選擇權關鍵位未完整驗證","宏觀市場資料未納入","新聞資料未納入","完整Dashboard端到端測試尚未完成"],
+  "fallbacks":[{"dataset":"TAIFEX snapshot","original_source":"GitHub Contents API","actual_source":"GitHub Blob API","reason":"Contents API returned empty content","status":"successful"}]
+}
