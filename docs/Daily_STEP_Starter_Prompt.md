@@ -77,57 +77,15 @@ docs/AUTOMATION_ARCHITECTURE.md
 依正式 `CHATGPT_STEP_EXECUTION_PROMPT.md` 的要求，讀取所有必要：
 
 - 架構文件
-- 程式碼文件
 - 設定文件
 - JSON／CSV／Markdown 資料文件
 - 資料包
-- API／Proxy 相關文件
-- 其他必要輸入
 
 ---
 
-## 4. Gate 0 前置條件
+## 4. GitHub 讀取要求
 
-在完成 Gate 0 前，必須先取得並確認：
-
-1. 必要架構文件的位置
-2. 必要資料文件的位置
-3. GitHub Repository 位置
-4. Repository owner／name
-5. branch／ref
-6. 每一份必要文件及資料的 path
-
-本文件已指定 Repository：
-
-```text
-https://github.com/grichtoyang/cloudflare-github-test
-```
-
-但若必要文件的 path、branch／ref 或資料文件位置仍無法確認，則不得宣稱已完成 Gate 0。
-
-### 4.1 位置資訊不足時
-
-若任何必要位置資訊：
-
-- 尚未提供
-- 無法確認
-- 不完整
-- 與實際 Repository 結構不一致
-
-則必須：
-
-- 將 Gate 0 標示為 `BLOCKED` 或 `INSUFFICIENT_DATA`
-- 列出缺少或無法確認的具體項目
-- 等待使用者補充或確認
-- 取得完整資訊後，才可繼續 Gate 0
-
-不得自行猜測、補寫或假設文件位置。
-
----
-
-## 5. GitHub 讀取要求
-
-所有 GitHub Repository、文件、程式碼及資料讀取，必須依正式 STEP Execution Prompt 的規則執行。
+所有 GitHub Repository、文件及資料讀取，必須依正式 STEP Execution Prompt 的規則執行。
 
 至少必須確認：
 
@@ -156,7 +114,7 @@ https://github.com/grichtoyang/cloudflare-github-test
 
 ---
 
-## 6. 執行模式與控制指令
+## 5. 執行模式與控制指令
 
 本專案採用 **STEP EXECUTION 模式**。
 
@@ -172,7 +130,7 @@ https://github.com/grichtoyang/cloudflare-github-test
 
 ---
 
-## 7. 啟動後的必要回報
+## 6. 啟動後的必要回報
 
 啟動後，必須回報：
 
@@ -183,18 +141,12 @@ https://github.com/grichtoyang/cloudflare-github-test
 5. 尚未讀取、缺失或無法確認的文件
 6. 必要架構文件、資料文件及 path 的確認結果
 7. GitHub API／Retry／Fallback 狀態
-8. Gate 0 結果：
-   - `PASS`
-   - `PASS_WITH_MISSING_DATA`
-   - `BLOCKED`
-   - `FAIL`
-   - `INSUFFICIENT_DATA`
-9. 目前允許執行的 STEP
-10. 等待使用者輸入 `開始`
+8. 目前允許執行的 STEP
+9. 等待使用者輸入 `開始`
 
 ---
 
-## 8. 強制停止條件
+## 7. 強制停止條件
 
 符合以下任一情況時，不得進入後續 STEP：
 
@@ -204,6 +156,5 @@ https://github.com/grichtoyang/cloudflare-github-test
 - Repository、branch／ref 或 path 無法確認
 - GitHub 讀取尚未完成必要 Retry／Fallback
 - 內容完整性或格式驗證未通過
-- Gate 0 尚未通過
 
 此時必須清楚回報阻塞原因，不得假稱流程完成。
