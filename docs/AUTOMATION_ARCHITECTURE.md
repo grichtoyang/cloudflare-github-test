@@ -8,9 +8,9 @@
 
 V1.0 採以下責任分工：
 
-- GitHub Actions：資料抓取、標準化、驗證、Retry、Fallback、每日資料包及執行紀錄。
+- GitHub Actions：Cloudflare Proxy 資料抓取、標準化、驗證、Retry、Fallback、每日資料包及執行紀錄。
 - 使用者：人工啟動 ChatGPT 分析流程。
-- ChatGPT：讀取規格與資料包、產出 Markdown 報告、Dashboard JSON、錯誤與未完成紀錄，並嘗試寫回 GitHub。
+- ChatGPT：網頁爬蟲資料抓取、讀取 GitHub 文件規格與資料包、產出 Markdown 報告、Dashboard JSON、錯誤與未完成紀錄，並嘗試寫回 GitHub。
 
 資料抓取完成不等於盤前分析完成；報告產出不等於 GitHub 寫回成功；不得宣稱 GitHub Actions 在無 API Key 下自動呼叫 ChatGPT。
 
@@ -43,24 +43,9 @@ V1.0 採以下責任分工：
 - `data_date`
 - `generated_at`
 
-週末或休市日不得假造當日資料，也不得把前一交易日資料標示為當日資料。
 
-## 4. 強制不中斷規則
 
-分析開始後，無論發生一般錯誤，都必須盡可能完成：
-
-- Markdown 報告或最小錯誤報告
-- Dashboard JSON 或 `partial` JSON
-- 資料品質總覽
-- 錯誤紀錄
-- Fallback 紀錄
-- 未完成項目
-- 風險與限制
-- 最終報告狀態
-
-單一資料集、模組、Dashboard 或 GitHub 寫回失敗，不得直接停止整體流程。規則衝突時不得猜測，但仍須產出錯誤與降級結果。
-
-## 5. 資料層
+## 4. 資料層
 
 ```text
 raw/
@@ -76,7 +61,7 @@ logs/
 - `validated`：完成結構、欄位、日期、型別、數值、盤別、時間戳及完整性驗證。
 - `analysis_input`：供 ChatGPT 使用，必須附來源、時間、品質、Fallback、缺失及未完成項目。
 
-## 6. Retry 與 Fallback
+## 5. Retry 與 Fallback
 
 同一來源內的 Retry／替代 Endpoint 是技術重試層；跨來源 Fallback 必須遵守下列固定順序：
 
@@ -102,7 +87,7 @@ fallback.used=true
 
 不得以舊資料冒充當日行情、成交量、法人流量、未平倉量或選擇權鏈。
 
-## 7. 資料硬性規則
+## 6. 資料硬性規則
 
 1. 缺失資料使用 `null`，不得補成 `0`。
 2. OI 是部位存量；成交量及夜盤新增流向是期間流量，不得混用。
@@ -111,7 +96,7 @@ fallback.used=true
 5. Call Wall、Put Wall、Gamma Wall、Gamma Flip、Max Pain 不得單獨直接產生交易訊號。
 6. 資料不足、矛盾或規則衝突時，不得強行產生多空結論。
 
-## 8. Markdown 與 Dashboard
+## 7. Markdown 與 Dashboard
 
 Markdown 與 Dashboard 必須使用同一份已確認的分析結果。
 
@@ -152,7 +137,7 @@ blocked_by_access
 blocked_by_rule_conflict
 ```
 
-## 9. 錯誤與寫回
+## 8. 錯誤與寫回
 
 錯誤至少記錄：
 
@@ -179,7 +164,7 @@ github_writeback_failed
 
 只有重新讀取並確認 Repository、Branch、路徑、Commit 及檔案內容後，才可宣稱寫回成功。
 
-## 10. 完成判定
+## 9. 完成判定
 
 ### 資料自動化完成
 
@@ -191,7 +176,7 @@ github_writeback_failed
 ### 盤前分析完成
 
 - ChatGPT 已人工啟動。
-- 規格與資料包已讀取。
+- ChatGPT 爬蟲網頁資料且到 GitHub 抓取規格與資料包已讀取。
 - Markdown 與 Dashboard JSON 已產出。
 - 資料限制、Fallback 及未完成項目已揭露。
 - 輸出格式已驗證。
@@ -202,7 +187,7 @@ github_writeback_failed
 - Repository、Branch、路徑及 Commit 已確認。
 - 檔案已重新讀取驗證。
 
-## 11. 禁止事項
+## 10. 禁止事項
 
 - 不得虛構資料、來源、時間或錯誤結果。
 - 不得把延遲、過期或估算資料標示為即時資料。
