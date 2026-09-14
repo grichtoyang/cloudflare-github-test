@@ -1,0 +1,15 @@
+const DATA_URL='data/dashboard_latest.json';
+const pages={summary:'總結',spot:'現貨',futures:'期貨',options:'選擇權',global_markets:'重要市場'};
+let data=null,current='summary';
+const $=s=>document.querySelector(s);
+function esc(v){return v===null||v===undefined?'—':String(v)}
+function card(label,value,unit='',status=''){return `<article class="card"><div class="label">${label}</div><div class="value">${esc(value)} <small>${unit}</small></div><div class="muted">${status}</div></article>`}
+function renderTabs(){ $('#tabs').className='tabs';$('#tabs').innerHTML=Object.entries(pages).map(([k,v])=>`<button class="tab" role="tab" aria-selected="${k===current}" data-page="${k}">${v}</button>`).join('');$('#tabs').querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{current=b.dataset.page;render()})); }
+function render(){renderTabs();$('#meta').textContent=`報告日 ${esc(data.report_date)}｜資料日 ${esc(data.market?.taiex?.data_date)}｜${esc(data.timezone)}｜狀態 ${esc(data.report_status)}`;let h='';
+if(current==='summary'){h=`<h2>市場總結</h2><div class="grid">${card('方向',data.summary?.direction)}${card('Regime',data.summary?.regime)}${card('信心',data.summary?.confidence)}${card('資料狀態',data.data_status)}</div><div class="card"><h3>核心訊息</h3><p>${esc(data.summary?.core_message)}</p><h3>支撐</h3><p>${esc(data.summary?.key_support?.join(' / '))}</p><h3>壓力</h3><p>${esc(data.summary?.key_resistance?.join(' / '))}</p></div>`}
+if(current==='spot'){const m=data.market?.taiex||{};h=`<h2>現貨</h2><div class="grid">${card('TAIEX',m.close,'點',m.status)}${card('漲跌',m.change,'點',m.data_date)}${card('漲跌幅',m.change_percent,'%')}${card('成交金額',m.turnover,'元')}${card('上漲家數',m.advancing)}${card('下跌家數',m.declining)}${card('漲停',m.limit_up)}${card('跌停',m.limit_down)}</div>`}
+if(current==='futures'){const f=data.futures?.near_month||{},i=data.futures?.institutional_oi||{};h=`<h2>期貨</h2><div class="grid">${card('近月收盤',f.close,'點')}${card('結算價',f.settlement,'點')}${card('最高',f.high,'點')}${card('最低',f.low,'點')}${card('未平倉量',f.open_interest,'口')}${card('自營商 OI',i.dealer,'口')}${card('投信 OI',i.investment_trust,'口')}${card('外資 OI',i.foreign,'口')}</div>`}
+if(current==='options'){const o=data.options?.near_month||{};h=`<h2>選擇權｜近月</h2><div class="grid">${card('Call Wall',o.call_wall,'點')}${card('Put Wall',o.put_wall,'點')}${card('Gamma Wall',o.gamma_wall,'點')}${card('Gamma Flip',o.gamma_flip,'點')}${card('Max Pain',o.max_pain,'點')}</div><div class="card"><h3>當週</h3><p>資料狀態：${esc(data.options?.current_week?.status)}</p></div>`}
+if(current==='global_markets'){h='<h2>重要市場</h2><div class="card warning"><p>本次未取得完整美股、SOX、美債、美元、亞洲市場、BTC 與新聞資料。</p></div>'}
+const warnings=(data.warnings||[]).map(x=>`<li>${esc(x)}</li>`).join('');$('#app').innerHTML=h+`<div class="card warning"><h3>資料品質與警告</h3><ul class="list">${warnings||'<li>無</li>'}</ul></div>`;}
+fetch(DATA_URL).then(r=>{if(!r.ok)throw Error(r.status);return r.json()}).then(x=>{data=x;render()}).catch(e=>{$('#meta').textContent='資料載入失敗';$('#app').innerHTML=`<div class="card warning">無法載入 ${DATA_URL}：${esc(e.message)}</div>`});
