@@ -9,6 +9,7 @@
 3. 任何失敗都必須先執行全域 Retry／Fallback；完成後仍失敗，才記錄錯誤並繼續後續流程。
 4. 最終必須產出 Markdown 分析報告；若資料不足，報告仍須產出，並清楚標示缺失項目與影響範圍。
 5. ChatGPT 必須忠實使用 GitHub／GitHub Actions 提供的資料，不得自行捏造資料。
+6. **所有 GitHub 文件、程式碼、資料包、JSON、CSV、報告及其他 repository 內容，均必須優先透過 GitHub API 讀取；不得把一般頁面顯示、工具包裝層的空值或截斷內容直接視為檔案實際內容。**
 
 ## 2. 日期與交易日規則
 
@@ -30,8 +31,20 @@
 - JSON、CSV 或其他格式是否有效
 - 後續分析所需的必要欄位是否存在
 - Retry／Fallback 是否已依規則執行
+- **GitHub API 回傳的 HTTP 狀態、檔案 metadata、檔案大小、SHA、encoding 與實際內容是否一致**
 
-### 3.2 Gate 0 禁止檢查並阻擋的項目
+### 3.2 GitHub API 讀取規則
+
+1. 所有 repository 內容必須使用 GitHub API 讀取，優先使用 GitHub Contents API。
+2. 讀取時必須記錄至少：repository、branch／ref、path、HTTP 狀態、檔案大小、SHA、encoding 及讀取時間。
+3. Contents API 回傳內容若為空、截斷、格式異常或與檔案 metadata 不符，不得直接判定檔案空白或資料缺失。
+4. 發生上述情況時，必須依序使用 Git Blob API 或 Raw GitHub URL 交叉驗證；必要時再使用其他已核准的 GitHub API fallback。
+5. 至少完成一次交叉驗證，並確認 JSON／CSV／文字內容可解析後，才可判定檔案是否真的空白、損壞或缺失。
+6. **「GitHub 工具回傳空值」不得直接等同於「GitHub 檔案內容為空」。**
+7. 若 API 讀取失敗，必須記錄為 `github_read_failed`；若第二讀取方式成功，記錄實際成功方式，不得把前一次讀取異常列為資料缺失。
+8. 只有在 GitHub API、Blob／Raw 交叉驗證及既定 fallback 均失敗後，才可將檔案標記為 `missing` 或 `unavailable`。
+
+### 3.3 Gate 0 禁止檢查並阻擋的項目
 
 以下項目不得作為 Gate 0 的 BLOCKED 條件：
 
@@ -47,7 +60,7 @@
 - 資料品質欄位是否存在
 - 錯誤及 Fallback 紀錄欄位是否存在
 
-### 3.3 Gate 0 結果
+### 3.4 Gate 0 結果
 
 - 若資料可讀取且具備分析所需輸入：`PASS`
 - 若部分資料缺失但仍可進行部分分析：`PASS_WITH_MISSING_DATA`
@@ -120,4 +133,4 @@
 - Markdown 完整報告
 - 最終驗證結果
 
-**核心原則：GitHub／GitHub Actions 負責資料日期與上游資料流程；ChatGPT 負責讀取、分析、記錄並完成報告。ChatGPT 不得自行判日期，也不得因日期欄位缺失而阻擋整個執行流程。**
+**核心原則：GitHub／GitHub Actions 負責資料日期與上游資料流程；ChatGPT 負責透過 GitHub API 讀取、分析、記錄並完成報告。ChatGPT 不得自行判日期，也不得因日期欄位缺失而阻擋整個執行流程。**
