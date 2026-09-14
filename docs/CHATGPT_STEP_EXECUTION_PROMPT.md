@@ -86,31 +86,6 @@ ChatGPT 必須依照本文件逐階段執行，不得跳過階段、提前宣稱
 
 ---
 
-## 5. Gate 0 規則
-
-Gate 0 是後續所有分析、資料擷取、判讀、報告產出的必要前置關卡。
-
-**Gate 0 必須再次強制確認並遵守第 3 節「全域執行原則」中的所有 GitHub 讀取強制規則。不得因進入 Gate 0 而省略、降低或改寫任何 GitHub API、Retry、Fallback、完整性驗證或結果判定要求。**
-
-執行 Gate 0 時，必須確認：
-
-1. 必要文件可讀取。
-2. GitHub／Proxy／資料來源可連線。
-3. 必要資料包存在。
-4. 檔案格式可解析。
-5. 必要欄位存在。
-6. GitHub 讀取強制規則已完整執行並符合要求。
-7. Retry／Fallback 已完成。
-8. 所有透過 GitHub 讀取的檔案、程式碼、JSON、CSV、Markdown、資料包及 Repository 內容，均取得完整實際內容。
-
-### 6.1 Gate 0 結果
-
-Gate 0 只能產生以下結果：
-
-- PASS：所有必要項目均通過。
-- PASS_WITH_MISSING_DATA：部分非必要資料缺失，但仍可安全完成報告。
-- BLOCKED：必要資料或必要文件無法取得，且已完成 Retry／Fallback。
-- FAIL：檢查或驗證程序本身失敗。
 
 ## 6. STEP 總覽
 
