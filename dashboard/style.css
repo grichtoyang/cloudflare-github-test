@@ -1,1 +1,23 @@
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC",sans-serif;background:#f5f7fb;color:#172033}.wrap{max-width:1100px;margin:auto;padding:24px}header{margin-bottom:18px}h1{margin:0 0 6px;font-size:clamp(24px,4vw,36px)}p{color:#5c6678}.tabs{display:flex;gap:8px;overflow-x:auto;margin-bottom:18px}.tab{border:1px solid #ccd3df;background:white;border-radius:10px;padding:10px 16px;cursor:pointer;white-space:nowrap}.tab[aria-selected=true]{background:#172033;color:white}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.card{background:white;border:1px solid #dce2eb;border-radius:14px;padding:16px}.label{font-size:14px;color:#697386}.value{font-size:27px;font-weight:700;margin-top:6px;overflow-wrap:anywhere}.warning{background:#fff4d6;border-color:#e5c56b}.muted{font-size:13px;color:#697386}.list{line-height:1.8}@media(max-width:520px){.wrap{padding:15px}.value{font-size:23px}}
+*{box-sizing:border-box}
+:root{--navy:#12366b;--navy2:#0b2854;--blue:#1d4f91;--line:#b9c9df;--ink:#172033;--muted:#5e6b80;--green:#168044;--red:#c62828;--paper:#fff}
+body{margin:0;font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;background:#eef3f9;color:var(--ink)}
+.wrap{max-width:1220px;margin:auto;padding:18px}
+header{background:linear-gradient(135deg,#fff 0%,#f7faff 100%);border:1px solid var(--line);border-radius:12px;padding:16px 20px;margin-bottom:12px;box-shadow:0 2px 8px #16345d12}
+h1{margin:0 0 4px;color:var(--navy2);font-size:clamp(26px,4vw,42px);font-weight:850;letter-spacing:.3px}header p{margin:0;color:var(--blue);font-weight:650;font-size:14px}
+#tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:12px;padding:4px 0;scrollbar-width:thin}
+.tab{flex:1 0 auto;border:1px solid #9db3d0;background:#fff;color:var(--navy);border-radius:8px;padding:11px 18px;cursor:pointer;white-space:nowrap;font-weight:750;font-size:15px;box-shadow:0 1px 2px #17345b12}
+.tab[aria-selected=true]{background:var(--navy);color:#fff;border-color:var(--navy);box-shadow:0 3px 7px #12366b35}
+#app{display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:10px;align-items:stretch}
+#app>h2{grid-column:1/-1;margin:0;background:var(--navy);color:#fff;border-radius:8px;padding:10px 14px;font-size:21px;letter-spacing:.2px}
+#app>.grid{grid-column:1/-1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:9px}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:8px;padding:12px;box-shadow:0 1px 3px #17345b0c;min-width:0}
+#app>section.card{grid-column:span 6;padding:0;overflow:hidden}
+#app>section.card:nth-last-child(1){grid-column:1/-1}
+.card h3{margin:0;padding:8px 11px;background:linear-gradient(90deg,var(--navy),#24558e);color:#fff;font-size:16px;font-weight:800;letter-spacing:.2px}
+.card>p,.card>.table-wrap,.card>ul,.card>div:not(.label):not(.value):not(.muted){margin:10px 12px}
+.label{font-size:13px;color:var(--muted);font-weight:700;text-transform:none}.value{font-size:clamp(22px,3vw,30px);font-weight:850;line-height:1.2;margin-top:5px;overflow-wrap:anywhere;color:var(--navy2)}.value small{font-size:12px;font-weight:600;color:var(--muted)}.muted{font-size:12px;color:var(--muted);margin-top:5px;overflow-wrap:anywhere}
+.table-wrap{overflow-x:auto}.table-wrap table{width:100%;border-collapse:collapse;font-size:13px}.table-wrap th,.table-wrap td{border:1px solid #cbd7e7;padding:6px 8px;text-align:left;vertical-align:top}.table-wrap th{background:#f0f5fb;color:#24446e;font-weight:750;width:42%}.table-wrap td{font-weight:650;overflow-wrap:anywhere}
+.card p{line-height:1.65;color:#33445d}.card b{color:var(--navy2)}.list{line-height:1.7;padding-left:28px;color:#44536a}.warning{background:#fff5d8;border-color:#e0b84e;color:#654b08}
+#app>section.card:last-of-type{background:#fffaf0;border-color:#d9b75e}
+@media(max-width:850px){#app>.grid{grid-template-columns:repeat(2,minmax(0,1fr))}#app>section.card{grid-column:1/-1}}
+@media(max-width:520px){.wrap{padding:9px}header{padding:12px}h1{font-size:27px}.tab{padding:9px 13px;font-size:14px}#app{gap:8px}#app>h2{font-size:18px;padding:9px 11px}.card{padding:10px}.value{font-size:23px}#app>section.card{grid-column:1/-1}.table-wrap th,.table-wrap td{padding:5px 6px;font-size:12px}}
