@@ -44,7 +44,17 @@
 7. 若 API 讀取失敗，必須記錄為 `github_read_failed`；若第二讀取方式成功，記錄實際成功方式，不得把前一次讀取異常列為資料缺失。
 8. 只有在 GitHub API、Blob／Raw 交叉驗證及既定 fallback 均失敗後，才可將檔案標記為 `missing` 或 `unavailable`。
 
-### 3.3 Gate 0 禁止檢查並阻擋的項目
+### 3.3 NOTICE.md 讀取規則
+
+1. `NOTICE.md` 的標準路徑為 repository 根目錄：`NOTICE.md`。
+2. 執行開始時，必須先嘗試透過 GitHub API 讀取根目錄 `NOTICE.md`。
+3. 若根目錄沒有 `NOTICE.md`，不得直接將整個流程標記為 `BLOCKED`；必須記錄 `notice_missing`，並繼續執行後續流程。
+4. 若讀取回傳 HTTP 404，必須確認根目錄與 `docs/NOTICE.md` 是否存在；若兩者皆不存在，記錄「NOTICE.md 未部署」，不得反覆重試造成流程停滯。
+5. 若 `NOTICE.md` 存在但讀取失敗，依全域 Retry／Fallback 規則處理；完成後仍失敗時，記錄 `notice_read_failed`，但不得阻擋報告產出。
+6. `NOTICE.md` 僅屬於執行注意事項文件，不是市場資料必要輸入；其缺失不得阻擋 Gate 0、Stage 2 或最終 Markdown 報告。
+7. 只有在實際成功讀取 `NOTICE.md` 後，才可在報告中列為 `READ_SUCCESS`；不可將預期存在、檔名出現於 Prompt 或 HTTP 404 說成已讀取成功。
+
+### 3.4 Gate 0 禁止檢查並阻擋的項目
 
 以下項目不得作為 Gate 0 的 BLOCKED 條件：
 
@@ -59,8 +69,9 @@
 - 資料截止時間是否存在
 - 資料品質欄位是否存在
 - 錯誤及 Fallback 紀錄欄位是否存在
+- `NOTICE.md` 是否存在或是否成功讀取
 
-### 3.4 Gate 0 結果
+### 3.5 Gate 0 結果
 
 - 若資料可讀取且具備分析所需輸入：`PASS`
 - 若部分資料缺失但仍可進行部分分析：`PASS_WITH_MISSING_DATA`
@@ -133,4 +144,4 @@
 - Markdown 完整報告
 - 最終驗證結果
 
-**核心原則：GitHub／GitHub Actions 負責資料日期與上游資料流程；ChatGPT 負責透過 GitHub API 讀取、分析、記錄並完成報告。ChatGPT 不得自行判日期，也不得因日期欄位缺失而阻擋整個執行流程。**
+**核心原則：GitHub／GitHub Actions 負責資料日期與上游資料流程；ChatGPT 負責透過 GitHub API 讀取、分析、記錄並完成報告。ChatGPT 不得自行判日期，也不得因日期欄位缺失或 NOTICE.md 缺失而阻擋整個執行流程。**
