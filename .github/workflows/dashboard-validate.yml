@@ -1,0 +1,60 @@
+name: Dashboard Validate
+
+on:
+  push:
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/dashboard-validate.yml'
+  pull_request:
+    paths:
+      - 'dashboard/**'
+      - '.github/workflows/dashboard-validate.yml'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Validate dashboard files and data
+        run: |
+          set -euo pipefail
+          test -f dashboard/index.html
+          test -f dashboard/style.css
+          test -f dashboard/app.js
+          test -f dashboard/data/dashboard_latest.json
+
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('dashboard/data/dashboard_latest.json', 'utf8'));
+          const required = [
+            'schema_version',
+            'report_date',
+            'report_status',
+            'data_status',
+            'market',
+            'futures',
+            'options',
+            'summary'
+          ];
+          for (const key of required) {
+            if (!(key in data)) throw new Error(`Missing required field: ${key}`);
+          }
+
+          const html = fs.readFileSync('dashboard/index.html', 'utf8');
+          const js = fs.readFileSync('dashboard/app.js', 'utf8');
+          for (const token of ['style.css', 'app.js']) {
+            if (!html.includes(token)) throw new Error(`index.html missing ${token}`);
+          }
+          if (!js.includes('data/dashboard_latest.json')) {
+            throw new Error('app.js missing dashboard data path');
+          }
+          console.log('Dashboard validation passed');
+          NODE
