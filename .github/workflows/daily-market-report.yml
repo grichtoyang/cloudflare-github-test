@@ -1,10 +1,10 @@
 name: Daily Market Report
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
+  workflow_dispatch:
   schedule:
     - cron: '0 0 * * 1-5'
 
@@ -25,6 +25,14 @@ jobs:
 
       - name: Generate report
         run: python scripts/generate_daily_report.py --date "${{ steps.date.outputs.report_date }}"
+
+      - name: Verify generated report
+        shell: bash
+        run: |
+          test -s "reports/${{ steps.date.outputs.report_date }}.md"
+          grep -q "台指期行情筆數：6" "reports/${{ steps.date.outputs.report_date }}.md"
+          grep -q "法人交易筆數：3" "reports/${{ steps.date.outputs.report_date }}.md"
+          echo "Report verification passed."
 
       - name: Commit report
         shell: bash
