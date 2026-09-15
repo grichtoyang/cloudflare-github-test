@@ -19,42 +19,46 @@ def fmt(value: Any) -> str:
     return str(value)
 
 
-def unwrap(value: Any) -> Any:
-    """Unwrap repeated service/data containers."""
+def unwrap_dict(value: Any) -> Any:
+    """Unwrap service containers whose data member is another dictionary."""
     while isinstance(value, dict) and isinstance(value.get("data"), dict):
         value = value["data"]
     return value
 
 
-def rows_for(value: Any) -> list[dict]:
-    """Dataset objects contain their actual rows in a nested data list."""
-    value = unwrap(value)
+def rows_for(value: Any) -> list[dict[str, Any]]:
+    """Read rows from either a direct list or a dataset wrapper with data=list."""
+    if isinstance(value, dict) and isinstance(value.get("data"), list):
+        value = value["data"]
+    elif isinstance(value, dict):
+        value = unwrap_dict(value)
+        if isinstance(value, dict) and isinstance(value.get("data"), list):
+            value = value["data"]
     if isinstance(value, list):
         return [row for row in value if isinstance(row, dict)]
     return []
 
 
-def find_lists(obj: Any, key_terms: tuple[str, ...], found: list[tuple[str, list]]) -> None:
+def find_lists(obj: Any, key_terms: tuple[str, ...], found: list[list[dict[str, Any]]]) -> None:
     if isinstance(obj, dict):
         for key, value in obj.items():
             if isinstance(value, list) and any(term in key.lower() for term in key_terms):
-                found.append((key, value))
+                rows = [row for row in value if isinstance(row, dict)]
+                if rows:
+                    found.append(rows)
             find_lists(value, key_terms, found)
     elif isinstance(obj, list):
         for item in obj:
             find_lists(item, key_terms, found)
 
 
-def first_list(data: dict, names: tuple[str, ...]) -> list[dict]:
-    found: list[tuple[str, list]] = []
+def first_list(data: dict[str, Any], names: tuple[str, ...]) -> list[dict[str, Any]]:
+    found: list[list[dict[str, Any]]] = []
     find_lists(data, names, found)
-    for _, rows in found:
-        if rows and isinstance(rows[0], dict):
-            return rows
-    return []
+    return found[0] if found else []
 
 
-def row_table(rows: list[dict], columns: list[str]) -> str:
+def row_table(rows: list[dict[str, Any]], columns: list[str]) -> str:
     if not rows:
         return "資料未取得。"
     header = "| " + " | ".join(columns) + " |\n"
@@ -65,9 +69,9 @@ def row_table(rows: list[dict], columns: list[str]) -> str:
     return header + sep + body
 
 
-def generate(data: dict, source_file: str) -> str:
+def generate(data: dict[str, Any], source_file: str) -> str:
     meta = data if isinstance(data, dict) else {}
-    payload = unwrap(data)
+    payload = unwrap_dict(data)
     if not isinstance(payload, dict):
         payload = {}
 
