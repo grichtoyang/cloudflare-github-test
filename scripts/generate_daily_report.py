@@ -19,6 +19,21 @@ def fmt(value: Any) -> str:
     return str(value)
 
 
+def unwrap(value: Any) -> Any:
+    """Unwrap repeated service/data containers."""
+    while isinstance(value, dict) and isinstance(value.get("data"), dict):
+        value = value["data"]
+    return value
+
+
+def rows_for(value: Any) -> list[dict]:
+    """Dataset objects contain their actual rows in a nested data list."""
+    value = unwrap(value)
+    if isinstance(value, list):
+        return [row for row in value if isinstance(row, dict)]
+    return []
+
+
 def find_lists(obj: Any, key_terms: tuple[str, ...], found: list[tuple[str, list]]) -> None:
     if isinstance(obj, dict):
         for key, value in obj.items():
@@ -30,7 +45,7 @@ def find_lists(obj: Any, key_terms: tuple[str, ...], found: list[tuple[str, list
             find_lists(item, key_terms, found)
 
 
-def first_list(data: dict, names: tuple[str, ...]) -> list:
+def first_list(data: dict, names: tuple[str, ...]) -> list[dict]:
     found: list[tuple[str, list]] = []
     find_lists(data, names, found)
     for _, rows in found:
@@ -51,27 +66,15 @@ def row_table(rows: list[dict], columns: list[str]) -> str:
 
 
 def generate(data: dict, source_file: str) -> str:
-    meta = data.get("meta", {})
-    payload = data.get("data", data)
-
-    # TAIFEX JSON currently uses data.data.<dataset>.
-    # Unwrap nested data containers without assuming a fixed number of levels.
-    while isinstance(payload, dict) and isinstance(payload.get("data"), dict):
-        payload = payload["data"]
+    meta = data if isinstance(data, dict) else {}
+    payload = unwrap(data)
     if not isinstance(payload, dict):
         payload = {}
 
-    futures = payload.get("futures_price", [])
-    institutional = payload.get("futures_institutional", [])
-    institutional_oi = payload.get("futures_institutional_oi", [])
+    futures = rows_for(payload.get("futures_price"))
+    institutional = rows_for(payload.get("futures_institutional"))
+    institutional_oi = rows_for(payload.get("futures_institutional_oi"))
     options = first_list(payload, ("option", "options", "call", "put"))
-
-    if not isinstance(futures, list):
-        futures = []
-    if not isinstance(institutional, list):
-        institutional = []
-    if not isinstance(institutional_oi, list):
-        institutional_oi = []
 
     date = meta.get("date") or Path(source_file).stem
     timestamp = meta.get("timestamp", "未提供")
@@ -102,7 +105,7 @@ def generate(data: dict, source_file: str) -> str:
         cols = list(options[0].keys())[:12]
         lines.append(row_table(options, cols))
     else:
-        lines.append("選擇權資料未在目前 JSON 結構中辨識到可直接列示的資料。請保留原始 JSON 供後續欄位對應。")
+        lines.append("選擇權資料未在目前 JSON 結構中辨識到可直接列示的資料。")
     lines += [
         "",
         "## 5. 資料完整性檢查",
