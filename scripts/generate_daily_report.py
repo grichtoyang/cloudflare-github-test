@@ -33,7 +33,7 @@ def find_lists(obj: Any, key_terms: tuple[str, ...], found: list[tuple[str, list
 def first_list(data: dict, names: tuple[str, ...]) -> list:
     found: list[tuple[str, list]] = []
     find_lists(data, names, found)
-    for key, rows in found:
+    for _, rows in found:
         if rows and isinstance(rows[0], dict):
             return rows
     return []
@@ -53,6 +53,11 @@ def row_table(rows: list[dict], columns: list[str]) -> str:
 def generate(data: dict, source_file: str) -> str:
     meta = data.get("meta", {})
     payload = data.get("data", data)
+
+    # TAIFEX JSON currently uses data.data.<dataset>.
+    # Unwrap nested data containers without assuming a fixed number of levels.
+    while isinstance(payload, dict) and isinstance(payload.get("data"), dict):
+        payload = payload["data"]
     if not isinstance(payload, dict):
         payload = {}
 
@@ -61,9 +66,12 @@ def generate(data: dict, source_file: str) -> str:
     institutional_oi = payload.get("futures_institutional_oi", [])
     options = first_list(payload, ("option", "options", "call", "put"))
 
-    if not isinstance(futures, list): futures = []
-    if not isinstance(institutional, list): institutional = []
-    if not isinstance(institutional_oi, list): institutional_oi = []
+    if not isinstance(futures, list):
+        futures = []
+    if not isinstance(institutional, list):
+        institutional = []
+    if not isinstance(institutional_oi, list):
+        institutional_oi = []
 
     date = meta.get("date") or Path(source_file).stem
     timestamp = meta.get("timestamp", "未提供")
