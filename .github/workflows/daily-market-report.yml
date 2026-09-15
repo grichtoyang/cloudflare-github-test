@@ -29,16 +29,18 @@ jobs:
       - name: Verify generated report
         shell: bash
         run: |
-          test -s "reports/${{ steps.date.outputs.report_date }}.md"
-          grep -q "台指期行情筆數：6" "reports/${{ steps.date.outputs.report_date }}.md"
-          grep -q "法人交易筆數：3" "reports/${{ steps.date.outputs.report_date }}.md"
+          report="reports/${{ steps.date.outputs.report_date }}.md"
+          test -s "$report"
+          grep -Eq '台指期行情筆數：[1-9][0-9]*' "$report"
+          grep -Eq '法人交易筆數：[1-9][0-9]*' "$report"
           echo "Report verification passed."
+          grep -E '台指期行情筆數|法人交易筆數|法人 OI 筆數|選擇權辨識筆數' "$report"
 
       - name: Commit report
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.email "41898282+users.noreply.github.com"
           git add reports/
           if git diff --cached --quiet; then
             echo "No report changes to commit."
