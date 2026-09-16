@@ -2,7 +2,7 @@
   "ok": true,
   "source": "SPOT",
   "date": "2026-09-15",
-  "retrieved_at": "2026-09-16T08:52:53.657324+00:00",
+  "retrieved_at": "2026-09-16T09:29:58.287875+00:00",
   "timezone": "UTC",
   "data": {
     "taiex": {
@@ -11,7 +11,7 @@
       "high": null,
       "low": null,
       "change_points": 351.03,
-      "change_percent": -0.77,
+      "change_percent": 0.77,
       "turnover_value": 634706804618.0
     },
     "listed_breadth": {
