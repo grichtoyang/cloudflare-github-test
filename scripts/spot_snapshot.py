@@ -58,9 +58,9 @@ def main():
       'sbl': {'balance':None,'short_sale_balance':None,'short_sale_change':None},
       'turnover': {'listed':find(ms,['turnover_value']),'otc':None,'total':find(ms,['turnover_value'])}
     }
-    required={'taiex':['close']}
+    required={'taiex':['close','change_points','change_percent'],'listed_breadth':['up','down','unchanged','limit_up','limit_down'],'turnover':['listed','total']}
     missing=[f'{g}.{k}' for g,ks in required.items() for k in ks if data[g].get(k) is None]
-    unavailable=[f'{g}.{k}' for g,values in data.items() for k,v in values.items() if v is None and not (g=='taiex' and k=='close')]
+    unavailable=[f'{g}.{k}' for g,values in data.items() for k,v in values.items() if v is None]
     out={'ok':not missing,'source':'SPOT','date':d,'retrieved_at':datetime.now(timezone.utc).isoformat(),'timezone':'UTC','data':data,'sources':{'twse_snapshot':str(tw)},'missing_required':missing,'unavailable_fields':unavailable,'integrity_errors':[]}
     for path in (root/'snapshots'/d/'spot-snapshot.json',root/'spot'/f'{d}.json'):
         path.parent.mkdir(parents=True,exist_ok=True); path.write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
