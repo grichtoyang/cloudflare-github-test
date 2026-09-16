@@ -67,6 +67,19 @@ jobs:
           status=$?
           set -e
           if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
+      - name: Collect raw TWSE and TPEX spot JSON
+        id: spot_raw
+        if: steps.dates.outputs.allowed == 'true'
+        run: |
+          python scripts/diagnose_spot_raw.py --date '${{ steps.dates.outputs.t0 }}'
+      - name: Upload raw spot JSON diagnostic
+        if: always() && steps.dates.outputs.allowed == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: spot-raw-json-${{ steps.dates.outputs.t0 }}
+          path: data/raw/
+          if-no-files-found: error
+          retention-days: 14
       - name: Build SPOT snapshot
         id: spot
         if: steps.dates.outputs.allowed == 'true'
