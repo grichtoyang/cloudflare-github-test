@@ -72,7 +72,10 @@
 
 ### 4. 融資融券
 
-**資料來源：** 尚未確認
+**資料來源：**
+
+- 上市：`TWSE OpenAPI` — `https://openapi.twse.com.tw/v1/exchangeReport/MI_MARGN`
+- 上櫃：`TPEX OpenAPI` — `https://www.tpex.org.tw/openapi/v1/tpex_mainboard_margin_balance`
 
 | 項目 | 數值 | 單位 |
 |---|---:|---|
@@ -86,7 +89,10 @@
 
 ### 5. 借券資料
 
-**資料來源：** 尚未確認
+**資料來源：**
+
+- 上市：`TWSE OpenAPI` — `https://openapi.twse.com.tw/v1/SBL/TWT96U`
+- 上櫃：`TPEX OpenAPI` — `https://www.tpex.org.tw/openapi/v1/tpex_margin_sbl`
 
 | 項目 | 數值 | 單位 |
 |---|---:|---|
@@ -98,7 +104,10 @@
 
 ### 6. 市場成交結構
 
-**資料來源：** 尚未確認
+**資料來源：**
+
+- 上市：`TWSE OpenAPI` — `https://openapi.twse.com.tw/v1/exchangeReport/FMTQIK`
+- 上櫃：`TPEX OpenAPI` — `https://www.tpex.org.tw/openapi/v1/tpex_mainborad_highlight`
 
 | 項目 | 成交金額 | 單位 |
 |---|---:|---|
