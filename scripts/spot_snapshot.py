@@ -1,280 +1,254 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse, json, re, sys
+
+import argparse
+import json
+import re
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 
-def num(v):
-    if v is None:
+def num(value):
+    if value is None:
         return None
-    s = str(v).replace(',', '').replace('%', '').replace('－', '-').replace('—', '-').strip()
-    if s in ('', '--', '---', 'N/A', 'null', 'None', '除息', '-'):
+    text = str(value).replace(",", "").replace("%", "").replace("－", "-").replace("—", "-").strip()
+    if text in {"", "--", "---", "N/A", "null", "None", "除息", "-"}:
         return None
-    m = re.search(r'-?\d+(?:\.\d+)?', s)
-    return float(m.group()) if m else None
+    match = re.search(r"-?\d+(?:\.\d+)?", text)
+    return float(match.group()) if match else None
 
 
-def load_raw(root, name, date):
-    p = root / 'raw' / f'{name}_{date}.json'
-    if not p.exists():
+def load_raw(root: Path, name: str, date: str):
+    path = root / "raw" / f"{name}_{date}.json"
+    if not path.exists():
         return None
     try:
-        x = json.loads(p.read_text(encoding='utf-8'))
-        return x.get('payload') if isinstance(x, dict) else x
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload.get("payload") if isinstance(payload, dict) else payload
     except Exception:
         return None
 
 
-def load_twse(root, date):
-    p = root / 'twse' / f'{date}.json'
-    if not p.exists():
+def load_twse(root: Path, date: str):
+    path = root / "twse" / f"{date}.json"
+    if not path.exists():
         return {}
     try:
-        x = json.loads(p.read_text(encoding='utf-8'))
-        return x.get('data', {}) if isinstance(x, dict) else {}
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return payload.get("data", {}) if isinstance(payload, dict) else {}
     except Exception:
         return {}
 
 
-def rows(x):
-    if isinstance(x, list):
-        return x
-    if isinstance(x, dict):
-        fields = x.get('fields') or x.get('columns') or []
-        data = x.get('data') or x.get('records') or x.get('aaData') or []
+def rows(value):
+    if isinstance(value, list):
+        return value
+    if isinstance(value, dict):
+        fields = value.get("fields") or value.get("columns") or []
+        data = value.get("data") or value.get("records") or value.get("aaData") or []
         if fields and data:
             return [
-                {str(fields[i]): v for i, v in enumerate(r) if i < len(fields)}
-                if isinstance(r, list) else r
-                for r in data
+                {str(fields[i]): item for i, item in enumerate(row) if i < len(fields)}
+                if isinstance(row, list) else row
+                for row in data
             ]
         return data if isinstance(data, list) else []
     return []
 
 
-def field(r, *names):
-    if not isinstance(r, dict):
+def normal_key(value):
+    return re.sub(r"[^a-z0-9一-龥]", "", str(value).lower())
+
+
+def field(row, *names):
+    if not isinstance(row, dict):
         return None
-    for n in names:
-        if n in r:
-            return num(r[n])
-    for k, v in r.items():
-        nk = re.sub(r'[^a-z0-9一-龥]', '', str(k).lower())
-        if any(re.sub(r'[^a-z0-9一-龥]', '', str(n).lower()) == nk for n in names):
-            return num(v)
+    wanted = {normal_key(name) for name in names}
+    for key, value in row.items():
+        if normal_key(key) in wanted:
+            return num(value)
     return None
 
 
-def first(x, pred=lambda r: True):
-    return next((r for r in rows(x) if isinstance(r, dict) and pred(r)), {})
+def first(value, predicate=lambda row: True):
+    return next((row for row in rows(value) if isinstance(row, dict) and predicate(row)), {})
 
 
-def total(x, *names):
-    vals = [field(r, *names) for r in rows(x)]
-    vals = [v for v in vals if v is not None]
-    return sum(vals) if vals else None
+def total(value, *names):
+    values = [field(row, *names) for row in rows(value)]
+    values = [item for item in values if item is not None]
+    return sum(values) if values else None
 
 
-def add(a, b):
-    return a + b if a is not None and b is not None else (a if b is None else b)
+def add(left, right):
+    if left is None:
+        return right
+    if right is None:
+        return left
+    return left + right
 
 
-def table_value(table, label, column):
+def table_value(table, labels, columns):
     if not isinstance(table, dict):
         return None
-    fields, data = table.get('fields', []), table.get('data', [])
-    try:
-        i = fields.index(column)
-    except ValueError:
+    fields = table.get("fields", [])
+    data = table.get("data", [])
+    if not fields or not data:
         return None
-    for r in data:
-        if r and str(r[0]).strip() == label:
-            return num(r[i]) if len(r) > i else None
+    column_indexes = [fields.index(column) for column in columns if column in fields]
+    if not column_indexes:
+        return None
+    wanted = {str(label).strip() for label in labels}
+    for row in data:
+        if row and str(row[0]).strip() in wanted:
+            for index in column_indexes:
+                if len(row) > index:
+                    value = num(row[index])
+                    if value is not None:
+                        return value
     return None
+
+
+def source_date_errors(raw, expected, name):
+    errors = []
+    for row in rows(raw):
+        if not isinstance(row, dict):
+            continue
+        for key in ("日期", "出表日期", "資料日期", "Date"):
+            if key in row and row[key]:
+                actual = str(row[key]).replace("-", "")
+                expected8 = expected.replace("-", "")
+                if len(actual) == 7 and actual.startswith("1"):
+                    actual = str(int(actual[:3]) + 1911) + actual[3:]
+                if actual != expected8:
+                    errors.append(f"{name}.date_mismatch:{row[key]}!= {expected}")
+                return errors
+    return errors
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument('--date', required=True)
-    ap.add_argument('--output-root', default='data')
-    a = ap.parse_args()
-    d, root = a.date, Path(a.output_root)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--date", required=True)
+    parser.add_argument("--output-root", default="data")
+    args = parser.parse_args()
+    date = args.date
+    root = Path(args.output_root)
 
-    tw = load_twse(root, d)
-    ta = tw.get('taiex', {})
-    stats = tw.get('market_statistics', {})
-    br = tw.get('advance_decline', {})
+    twse = load_twse(root, date)
+    taiex = twse.get("taiex", {})
+    stats = twse.get("market_statistics", {})
+    breadth_snapshot = twse.get("advance_decline", {})
 
-    mi = load_raw(root, 'twse_mi_index', d)
-    breadth = load_raw(root, 'twse_listed_breadth', d)
-    t86 = load_raw(root, 'twse_t86', d)
-    margin = load_raw(root, 'twse_margin', d)
-    sbl = load_raw(root, 'twse_sbl', d)
-    turn = load_raw(root, 'twse_turnover', d)
-    om = load_raw(root, 'tpex_margin', d)
-    os = load_raw(root, 'tpex_sbl', d)
-    oh = load_raw(root, 'tpex_highlight', d)
+    mi = load_raw(root, "twse_mi_index", date)
+    breadth = load_raw(root, "twse_listed_breadth", date)
+    t86 = load_raw(root, "twse_t86", date)
+    margin = load_raw(root, "twse_margin", date)
+    sbl = load_raw(root, "twse_sbl", date)
+    turnover = load_raw(root, "twse_turnover", date)
+    tpex_quotes = load_raw(root, "tpex_quotes", date)
+    tpex_margin = load_raw(root, "tpex_margin", date)
+    tpex_sbl = load_raw(root, "tpex_sbl", date)
+    tpex_highlight = load_raw(root, "tpex_highlight", date)
 
-    idx = first(mi, lambda r: r.get('指數') == '發行量加權股價指數')
-    listed = first(breadth, lambda r: r.get('類型') == '股票')
-    tr = first(turn)
+    index_row = first(mi, lambda row: row.get("指數") == "發行量加權股價指數")
+    listed_row = first(breadth, lambda row: row.get("類型") == "股票")
+    turnover_row = first(turnover)
+    otc_summary = first(tpex_highlight)
 
-    close = num(ta.get('close')) if ta else field(idx, '收盤指數')
-    raw_change = num(ta.get('change')) if ta else field(idx, '漲跌點數')
-    direction = str(ta.get('direction', '') if ta else idx.get('漲跌', '')).strip()
-    direction = direction.replace('－', '-').replace('—', '-')
-
-    if direction in ('-', '跌', '負') and raw_change is not None:
+    close = num(taiex.get("close")) or field(index_row, "收盤指數")
+    raw_change = num(taiex.get("change")) or field(index_row, "漲跌點數")
+    direction = str(taiex.get("direction", "") or index_row.get("漲跌", "")).strip()
+    change = raw_change
+    if raw_change is not None and direction in {"-", "跌", "負"}:
         change = -abs(raw_change)
-    elif direction in ('+', '漲', '正') and raw_change is not None:
+    elif raw_change is not None and direction in {"+", "漲", "正"}:
         change = abs(raw_change)
-    else:
-        change = raw_change
+    change_percent = num(taiex.get("change_percent")) or field(index_row, "漲跌百分比")
+    if change is not None and change_percent is not None and change != 0:
+        change_percent = abs(change_percent) if change > 0 else -abs(change_percent)
 
-    change_pct = num(ta.get('change_percent')) if ta else field(idx, '漲跌百分比')
+    listed_up = table_value(breadth_snapshot, ["上漲(漲停)"], ["股票"]) or field(listed_row, "上漲")
+    listed_down = table_value(breadth_snapshot, ["下跌(跌停)"], ["股票"]) or field(listed_row, "下跌")
+    listed_flat = table_value(breadth_snapshot, ["持平"], ["股票"]) or field(listed_row, "持平")
+    listed_limit_up = field(listed_row, "漲停")
+    listed_limit_down = field(listed_row, "跌停")
+    listed_turnover = table_value(stats, ["總計(1~15)", "總計"], ["成交金額(元)"]) or field(turnover_row, "TradeValue", "成交金額")
 
-    # TWSE data can occasionally provide inconsistent signs between
-    # change_points and change_percent. Keep the percentage direction
-    # consistent with the normalized point change.
-    if change is not None and change_pct is not None and change != 0 and change_pct != 0:
-        change_pct = abs(change_pct) if change > 0 else -abs(change_pct)
+    otc_up = field(otc_summary, "PriceRiseCompanyNumbers", "上漲家數", "上漲")
+    otc_down = field(otc_summary, "PriceDeclineCompanyNumbers", "下跌家數", "下跌")
+    otc_flat = field(otc_summary, "PriceFlatCompanyNumbers", "持平家數", "持平")
+    otc_limit_up = field(otc_summary, "LimitUpCompanyNumbers", "漲停家數", "漲停")
+    otc_limit_down = field(otc_summary, "LimitDownCompanyNumbers", "跌停家數", "跌停")
+    otc_turnover = field(otc_summary, "DailyTradingValue", "成交金額", "成交值")
+    if otc_turnover is not None and otc_turnover < 1_000_000_000:
+        otc_turnover *= 1_000_000
 
-    listed_up = table_value(br, '上漲(漲停)', '股票') if br else field(listed, '上漲')
-    listed_down = table_value(br, '下跌(跌停)', '股票') if br else field(listed, '下跌')
-    listed_flat = table_value(br, '持平', '股票') if br else field(listed, '持平')
-    listed_turn = table_value(stats, '總計(1~15)', '成交金額(元)') or field(tr, 'TradeValue')
-
-    otc = first(oh)
-    otc_turn = field(otc, 'DailyTradingValue')
-    otc_turn = otc_turn * 1000000 if otc_turn is not None else None
-
-    tw_fin = total(margin, '融資今日餘額')
-    tp_fin = total(om, 'MarginPurchaseBalance')
-    tw_fin_ch = (
-        add(total(margin, '融資買進'), -total(margin, '融資賣出'))
-        if total(margin, '融資買進') is not None and total(margin, '融資賣出') is not None
-        else None
-    )
+    tw_fin_balance = total(margin, "融資今日餘額")
+    tp_fin_balance = total(tpex_margin, "MarginPurchaseBalance", "融資餘額")
+    tw_fin_change = add(total(margin, "融資買進"), -total(margin, "融資賣出")) if total(margin, "融資買進") is not None and total(margin, "融資賣出") is not None else None
+    tp_fin_change = total(tpex_margin, "MarginPurchase", "融資增減")
+    tw_short_balance = total(margin, "融券今日餘額")
+    tp_short_balance = total(tpex_margin, "ShortSaleBalance", "融券餘額")
+    tw_short_change = add(total(margin, "融券賣出"), -total(margin, "融券買進")) if total(margin, "融券賣出") is not None and total(margin, "融券買進") is not None else None
+    tp_short_change = total(tpex_margin, "ShortSale", "融券增減")
 
     data = {
-        'taiex': {
-            'close': close,
-            'open': None,
-            'high': None,
-            'low': None,
-            'change_points': change,
-            'change_percent': change_pct,
-            'turnover_value': listed_turn,
-        },
-        'listed_breadth': {
-            'up': listed_up,
-            'down': listed_down,
-            'unchanged': listed_flat,
-            'limit_up': None,
-            'limit_down': None,
-        },
-        'otc_breadth': {
-            'up': field(otc, 'PriceRiseCompanyNumbers'),
-            'down': field(otc, 'PriceDeclineCompanyNumbers'),
-            'unchanged': field(otc, 'PriceFlatCompanyNumbers'),
-            'limit_up': field(otc, 'LimitUpCompanyNumbers'),
-            'limit_down': field(otc, 'LimitDownCompanyNumbers'),
-        },
-        'institutional': {
-            'unit': 'shares',
-            'foreign': total(t86, '外陸資買賣超股數(不含外資自營商)'),
-            'investment_trust': total(t86, '投信買賣超股數'),
-            'dealer': total(t86, '自營商買賣超股數'),
-            'total': total(t86, '三大法人買賣超股數'),
-        },
-        'margin': {
-            'financing_balance': add(tw_fin, tp_fin),
-            'financing_change': add(tw_fin_ch, total(om, 'MarginPurchase')),
-            'short_balance': add(total(margin, '融券今日餘額'), total(om, 'ShortSaleBalance')),
-            'short_change': add(
-                add(total(margin, '融券賣出'), -total(margin, '融券買進'))
-                if total(margin, '融券賣出') is not None and total(margin, '融券買進') is not None
-                else None,
-                total(om, 'ShortSale'),
-            ),
-            'maintenance_ratio': None,
-        },
-        'sbl': {
-            'balance': total(os, 'SecuritiesBorrowingBalanceOfTheMarketDay'),
-            'short_sale_balance': None,
-            'short_sale_change': None,
-        },
-        'turnover': {
-            'listed': listed_turn,
-            'otc': otc_turn,
-            'total': add(listed_turn, otc_turn),
-        },
+        "taiex": {"close": close, "open": None, "high": None, "low": None, "change_points": change, "change_percent": change_percent, "turnover_value": listed_turnover},
+        "listed_breadth": {"up": listed_up, "down": listed_down, "unchanged": listed_flat, "limit_up": listed_limit_up, "limit_down": listed_limit_down},
+        "otc_breadth": {"up": otc_up, "down": otc_down, "unchanged": otc_flat, "limit_up": otc_limit_up, "limit_down": otc_limit_down},
+        "institutional": {"unit": "shares", "foreign": total(t86, "外陸資買賣超股數(不含外資自營商)"), "investment_trust": total(t86, "投信買賣超股數"), "dealer": total(t86, "自營商買賣超股數"), "total": total(t86, "三大法人買賣超股數")},
+        "margin": {"financing_balance": add(tw_fin_balance, tp_fin_balance), "financing_change": add(tw_fin_change, tp_fin_change), "short_balance": add(tw_short_balance, tp_short_balance), "short_change": add(tw_short_change, tp_short_change), "maintenance_ratio": None},
+        "sbl": {"balance": total(sbl, "SecuritiesBorrowingBalanceOfTheMarketDay", "借券餘額"), "short_sale_balance": None, "short_sale_change": None},
+        "turnover": {"listed": listed_turnover, "otc": otc_turnover, "total": add(listed_turnover, otc_turnover)},
     }
 
-    optional = {
-        'taiex.open',
-        'taiex.high',
-        'taiex.low',
-        'listed_breadth.limit_up',
-        'listed_breadth.limit_down',
-        'margin.maintenance_ratio',
-        'sbl.balance',
-        'sbl.short_sale_balance',
-        'sbl.short_sale_change',
-    }
     unavailable = [
-        f'{g}.{k}'
-        for g, obj in data.items()
-        for k, v in obj.items()
-        if v is None and f'{g}.{k}' not in optional and k != 'unit'
+        "taiex.open", "taiex.high", "taiex.low", "margin.maintenance_ratio",
+        "sbl.short_sale_balance", "sbl.short_sale_change",
+    ]
+    missing_required = [
+        f"{group}.{key}"
+        for group, values in data.items()
+        for key, value in values.items()
+        if value is None and key != "unit" and f"{group}.{key}" not in unavailable
     ]
 
     integrity_errors = []
-    if close is not None and change is not None and change_pct is not None and close - change != 0:
-        expected_pct = change / (close - change) * 100
-        if abs(expected_pct - change_pct) > 0.10:
-            integrity_errors.append(
-                f'taiex.change_sign_or_percent_mismatch: expected≈{expected_pct:.2f}, actual={change_pct:.2f}'
-            )
+    for name, raw in (("twse_mi_index", mi), ("twse_listed_breadth", breadth), ("twse_margin", margin), ("twse_sbl", sbl), ("twse_turnover", turnover)):
+        integrity_errors.extend(source_date_errors(raw, date, name))
+    if close is not None and change is not None and change_percent is not None and close != change:
+        previous = close - change
+        if previous != 0:
+            expected = change / previous * 100
+            if abs(expected - change_percent) > 0.15:
+                integrity_errors.append("taiex.change_percent_mismatch")
+    inst = data["institutional"]
+    if all(inst.get(key) is not None for key in ("foreign", "investment_trust", "dealer", "total")):
+        if abs(inst["foreign"] + inst["investment_trust"] + inst["dealer"] - inst["total"]) > 0.5:
+            integrity_errors.append("institutional.total_mismatch")
+    turn = data["turnover"]
+    if all(turn.get(key) is not None for key in ("listed", "otc", "total")):
+        if abs(turn["listed"] + turn["otc"] - turn["total"]) > 1:
+            integrity_errors.append("turnover.total_mismatch")
 
-    inst = data['institutional']
-    if all(inst.get(k) is not None for k in ('foreign', 'investment_trust', 'dealer', 'total')):
-        if abs(inst['foreign'] + inst['investment_trust'] + inst['dealer'] - inst['total']) > 0.5:
-            integrity_errors.append('institutional.total_mismatch')
-
-    turnover = data['turnover']
-    if all(turnover.get(k) is not None for k in ('listed', 'otc', 'total')):
-        if abs(turnover['listed'] + turnover['otc'] - turnover['total']) > 1:
-            integrity_errors.append('turnover.total_mismatch')
-
-    out = {
-        'ok': not unavailable and not integrity_errors,
-        'source': 'SPOT',
-        'date': d,
-        'retrieved_at': datetime.now(timezone.utc).isoformat(),
-        'timezone': 'UTC',
-        'data': data,
-        'missing_required': [],
-        'unavailable_fields': unavailable,
-        'integrity_errors': integrity_errors,
+    output = {
+        "ok": not unavailable and not missing_required and not integrity_errors,
+        "source": "SPOT",
+        "date": date,
+        "retrieved_at": datetime.now(timezone.utc).isoformat(),
+        "timezone": "UTC",
+        "data": data,
+        "missing_required": missing_required,
+        "unavailable_fields": unavailable,
+        "integrity_errors": integrity_errors,
     }
-
-    for p in (
-        root / 'snapshots' / d / 'spot-snapshot.json',
-        root / 'spot' / f'{d}.json',
-    ):
-        p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-
-    print(json.dumps({
-        'date': d,
-        'ok': out['ok'],
-        'unavailable_fields': unavailable,
-        'integrity_errors': integrity_errors,
-    }, ensure_ascii=False))
-    return 0 if out['ok'] else 1
+    for path in (root / "snapshots" / date / "spot-snapshot.json", root / "spot" / f"{date}.json"):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({"date": date, "ok": output["ok"], "missing_required": missing_required, "unavailable_fields": unavailable, "integrity_errors": integrity_errors}, ensure_ascii=False))
+    return 0 if output["ok"] else 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
