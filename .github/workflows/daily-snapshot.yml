@@ -123,6 +123,18 @@ jobs:
           set -euo pipefail
           if [[ "${ALLOWED}" != true ]]; then echo 'READY_FOR_ANALYSIS=false'; exit 0; fi
           for status in "${TAIFEX}" "${TWSE}" "${SPOT}" "${SPOT_REPORT}" "${MANIFEST}" "${AI_INPUTS}" "${VALIDATOR}"; do [[ "${status}" == success ]]; done
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = next(Path('data/spot').glob('*.json'))
+          payload = json.loads(p.read_text(encoding='utf-8'))
+          unavailable = payload.get('unavailable_fields', [])
+          if unavailable:
+              raise SystemExit('SPOT incomplete: ' + ', '.join(unavailable))
+          if payload.get('missing_required'):
+              raise SystemExit('SPOT missing required fields: ' + ', '.join(payload['missing_required']))
+          print('SPOT completeness check passed')
+          PY
           echo 'READY_FOR_ANALYSIS=true'
       - name: Commit and push generated data and reports
         if: steps.ready_gate.outcome == 'success' && steps.dates.outputs.allowed == 'true'
