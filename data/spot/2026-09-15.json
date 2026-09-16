@@ -1,0 +1,90 @@
+{
+  "ok": true,
+  "source": "SPOT",
+  "date": "2026-09-15",
+  "retrieved_at": "2026-09-16T07:11:27.263111+00:00",
+  "timezone": "UTC",
+  "data": {
+    "taiex": {
+      "close": 45511.49,
+      "open": null,
+      "high": null,
+      "low": null,
+      "change_points": 351.03,
+      "change_percent": -0.77
+    },
+    "listed_breadth": {
+      "up": null,
+      "down": null,
+      "unchanged": null,
+      "limit_up": null,
+      "limit_down": null
+    },
+    "otc_breadth": {
+      "up": null,
+      "down": null,
+      "unchanged": null,
+      "limit_up": null,
+      "limit_down": null
+    },
+    "institutional": {
+      "unit": "shares",
+      "foreign": null,
+      "investment_trust": null,
+      "dealer": null,
+      "total": null
+    },
+    "margin": {
+      "financing_balance": null,
+      "financing_change": null,
+      "short_balance": null,
+      "short_change": null,
+      "maintenance_ratio": null
+    },
+    "sbl": {
+      "balance": null,
+      "short_sale_balance": null,
+      "short_sale_change": null
+    },
+    "turnover": {
+      "listed": null,
+      "otc": null,
+      "total": null
+    }
+  },
+  "sources": {
+    "twse_snapshot": "data/twse/2026-09-15.json"
+  },
+  "missing_required": [],
+  "unavailable_fields": [
+    "taiex.open",
+    "taiex.high",
+    "taiex.low",
+    "listed_breadth.up",
+    "listed_breadth.down",
+    "listed_breadth.unchanged",
+    "listed_breadth.limit_up",
+    "listed_breadth.limit_down",
+    "otc_breadth.up",
+    "otc_breadth.down",
+    "otc_breadth.unchanged",
+    "otc_breadth.limit_up",
+    "otc_breadth.limit_down",
+    "institutional.foreign",
+    "institutional.investment_trust",
+    "institutional.dealer",
+    "institutional.total",
+    "margin.financing_balance",
+    "margin.financing_change",
+    "margin.short_balance",
+    "margin.short_change",
+    "margin.maintenance_ratio",
+    "sbl.balance",
+    "sbl.short_sale_balance",
+    "sbl.short_sale_change",
+    "turnover.listed",
+    "turnover.otc",
+    "turnover.total"
+  ],
+  "integrity_errors": []
+}
