@@ -1,5 +1,3 @@
-# DATA_REPORT_TEMPLATE.md
-
 # DATA_REPORT_yyyymmdd
 
 - 報告日期：`YYYY-MM-DD`
@@ -299,11 +297,35 @@
 
 ### 7. 原油／黃金／Bitcoin
 
-| 項目 | 收盤／最新值 | 漲跌幅 |
-|---|---:|---:|
-| WTI 原油 | TBD | TBD |
-| 黃金 | TBD | TBD |
-| Bitcoin BTC | TBD | TBD |
+**主要資料來源：** `Yahoo Finance Chart API`
+
+**取得方式：** `Python requests／HTTP JSON`
+
+**備援方式：** `Yahoo Finance 網頁爬蟲或其他公開金融資料網站`
+
+**來源策略：** API 優先；API 失敗、資料缺漏或格式異常時，啟用爬蟲備援。
+
+**目前狀態：** `技術上可行，待實際程式測試`
+
+| 項目 | Yahoo Finance 代號 | 收盤／最新值 | 漲跌點／變化 | 漲跌幅 |
+|---|---|---:|---:|---:|
+| WTI 原油期貨 | `CL=F` | TBD | TBD | TBD |
+| 黃金期貨 | `GC=F` | TBD | TBD | TBD |
+| Bitcoin BTC | `BTC-USD` | TBD | TBD | TBD |
+
+**資料處理規則：**
+
+- WTI 原油及黃金採用期貨報價，不得誤標示為現貨價格。
+- Bitcoin 採用 `BTC-USD` 報價，屬於 24 小時交易市場。
+- 原油與黃金需取得最近一個可用交易日的收盤價及漲跌資料。
+- Bitcoin 需取得報告產出時間前的最新可用價格及變化資料。
+- API 回傳成功且資料完整時，使用 API 資料。
+- API 失敗或資料不完整時，啟用爬蟲備援。
+- API 與爬蟲皆失敗時，標記為 `unavailable`，不得自行推估數值。
+- 保留 `data_source`、`source_type`、`retrieved_at`、`timezone` 等欄位。
+- 原油及黃金期貨可能跨越台灣日期，程式須依實際報價時間與交易時段處理。
+- Bitcoin 不得直接套用傳統股票市場的收盤時間。
+- Yahoo Finance 資料的延遲、穩定性及使用限制，於程式測試階段另行確認。
 
 ### 8. 重大經濟數據與央行事件
 
