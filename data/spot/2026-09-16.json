@@ -1,0 +1,88 @@
+{
+  "ok": true,
+  "source": "SPOT",
+  "date": "2026-09-16",
+  "retrieved_at": "2026-09-16T05:50:43.820717+00:00",
+  "timezone": "UTC",
+  "data": {
+    "taiex": {
+      "close": null,
+      "open": null,
+      "high": null,
+      "low": null,
+      "change_points": null,
+      "change_percent": null,
+      "turnover_value": null
+    },
+    "listed_breadth": {
+      "up": null,
+      "down": null,
+      "unchanged": null,
+      "limit_up": null,
+      "limit_down": null
+    },
+    "otc_breadth": {
+      "up": null,
+      "down": null,
+      "unchanged": null,
+      "limit_up": null,
+      "limit_down": null
+    },
+    "margin": {},
+    "sbl": {},
+    "turnover": {}
+  },
+  "sources": {
+    "twse_proxy": {
+      "url": "https://twse-proxy.grichtoyang.workers.dev?date=20260916",
+      "status": 200,
+      "ok": true,
+      "payload": {
+        "ok": true,
+        "source": "TWSE",
+        "proxy": "twse-proxy",
+        "version": "1.0.0",
+        "date": "2026-09-16",
+        "endpoints": {
+          "IND": {
+            "status": 200,
+            "fetch_ok": true
+          },
+          "MS": {
+            "status": 200,
+            "fetch_ok": true
+          }
+        },
+        "data": {
+          "taiex": null,
+          "market_statistics": null,
+          "advance_decline": null
+        }
+      }
+    },
+    "tpex_breadth": {
+      "url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_daily_close_quotes",
+      "status": null,
+      "ok": false,
+      "error": "IncompleteRead(638569 bytes read, 3795992 more expected)"
+    },
+    "tpex_margin": {
+      "url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_margin_balance",
+      "status": null,
+      "ok": false,
+      "error": "IncompleteRead(196207 bytes read, 354897 more expected)"
+    },
+    "tpex_sbl": {
+      "url": "https://www.tpex.org.tw/openapi/v1/tpex_margin_sbl",
+      "status": null,
+      "ok": false,
+      "error": "IncompleteRead(130685 bytes read, 319569 more expected)"
+    },
+    "tpex_turnover": {
+      "url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_highlight",
+      "status": null,
+      "ok": false,
+      "error": "Expecting value: line 1 column 1 (char 0)"
+    }
+  }
+}
