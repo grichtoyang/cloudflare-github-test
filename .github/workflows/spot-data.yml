@@ -1,0 +1,42 @@
+name: Spot Data Collection
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 0 * * 1-5'
+
+permissions:
+  contents: write
+
+jobs:
+  collect-spot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set Taiwan date
+        id: date
+        shell: bash
+        run: echo "value=$(TZ=Asia/Taipei date +%F)" >> "$GITHUB_OUTPUT"
+      - name: Collect spot data
+        run: python scripts/spot_snapshot.py --date "${{ steps.date.outputs.value }}"
+      - name: Generate spot report
+        run: python scripts/generate_daily_report.py --date "${{ steps.date.outputs.value }}"
+      - name: Verify spot artifacts
+        shell: bash
+        run: |
+          test -s "data/spot/${{ steps.date.outputs.value }}.json"
+          test -s "data/snapshots/${{ steps.date.outputs.value }}/spot-snapshot.json"
+          test -s "reports/${{ steps.date.outputs.value }}.md"
+      - name: Commit spot artifacts
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+users.noreply.github.com"
+          git add data/spot data/snapshots reports
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "Collect spot data and generate report"
+            git push
+          fi
