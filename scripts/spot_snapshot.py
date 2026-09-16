@@ -17,8 +17,7 @@ def load_raw(root, name, date):
     try:
         x = json.loads(p.read_text(encoding='utf-8'))
         return x.get('payload') if isinstance(x, dict) else x
-    except Exception:
-        return None
+    except Exception: return None
 
 def load_twse(root, date):
     p = root / 'twse' / f'{date}.json'
@@ -26,8 +25,7 @@ def load_twse(root, date):
     try:
         x = json.loads(p.read_text(encoding='utf-8'))
         return x.get('data', {}) if isinstance(x, dict) else {}
-    except Exception:
-        return {}
+    except Exception: return {}
 
 def rows(x):
     if isinstance(x, list): return x
@@ -71,16 +69,17 @@ def table_value(table, label, column):
 def main():
     ap = argparse.ArgumentParser(); ap.add_argument('--date', required=True); ap.add_argument('--output-root', default='data'); a = ap.parse_args()
     d, root = a.date, Path(a.output_root)
-    tw = load_twse(root, d)
-    ta = tw.get('taiex', {}); stats = tw.get('market_statistics', {}); br = tw.get('advance_decline', {})
+    tw = load_twse(root, d); ta = tw.get('taiex', {}); stats = tw.get('market_statistics', {}); br = tw.get('advance_decline', {})
     mi = load_raw(root, 'twse_mi_index', d); breadth = load_raw(root, 'twse_listed_breadth', d)
     t86 = load_raw(root, 'twse_t86', d); margin = load_raw(root, 'twse_margin', d); sbl = load_raw(root, 'twse_sbl', d); turn = load_raw(root, 'twse_turnover', d)
     om = load_raw(root, 'tpex_margin', d); os = load_raw(root, 'tpex_sbl', d); oh = load_raw(root, 'tpex_highlight', d)
     idx = first(mi, lambda r: r.get('指數') == '發行量加權股價指數'); listed = first(breadth, lambda r: r.get('類型') == '股票'); tr = first(turn)
     close = num(ta.get('close')) if ta else field(idx, '收盤指數')
     raw_change = num(ta.get('change')) if ta else field(idx, '漲跌點數')
-    change_direction = str(ta.get('direction', '')).strip() if ta else str(idx.get('漲跌', '')).strip()
-    change = -abs(raw_change) if change_direction == '-' and raw_change is not None else abs(raw_change) if change_direction == '+' and raw_change is not None else raw_change
+    direction = str(ta.get('direction', '') if ta else idx.get('漲跌', '')).strip().replace('－', '-').replace('—', '-')
+    if direction in ('-', '跌', '負') and raw_change is not None: change = -abs(raw_change)
+    elif direction in ('+', '漲', '正') and raw_change is not None: change = abs(raw_change)
+    else: change = raw_change
     change_pct = num(ta.get('change_percent')) if ta else field(idx, '漲跌百分比')
     listed_up = table_value(br, '上漲(漲停)', '股票') if br else field(listed, '上漲')
     listed_down = table_value(br, '下跌(跌停)', '股票') if br else field(listed, '下跌')
@@ -93,18 +92,14 @@ def main():
     optional = {'taiex.open', 'taiex.high', 'taiex.low', 'listed_breadth.limit_up', 'listed_breadth.limit_down', 'margin.maintenance_ratio', 'sbl.balance', 'sbl.short_sale_balance', 'sbl.short_sale_change'}
     unavailable = [f'{g}.{k}' for g, obj in data.items() for k, v in obj.items() if v is None and f'{g}.{k}' not in optional and k != 'unit']
     integrity_errors = []
-    if close is not None and change is not None and change_pct is not None:
-        expected_pct = change / (close - change) * 100 if close - change != 0 else None
-        if expected_pct is not None and abs(expected_pct - change_pct) > 0.10:
+    if close is not None and change is not None and change_pct is not None and close - change != 0:
+        expected_pct = change / (close - change) * 100
+        if abs(expected_pct - change_pct) > 0.10:
             integrity_errors.append(f'taiex.change_sign_or_percent_mismatch: expected≈{expected_pct:.2f}, actual={change_pct:.2f}')
     inst = data['institutional']
-    if all(inst.get(k) is not None for k in ('foreign', 'investment_trust', 'dealer', 'total')):
-        if abs(inst['foreign'] + inst['investment_trust'] + inst['dealer'] - inst['total']) > 0.5:
-            integrity_errors.append('institutional.total_mismatch')
+    if all(inst.get(k) is not None for k in ('foreign', 'investment_trust', 'dealer', 'total')) and abs(inst['foreign'] + inst['investment_trust'] + inst['dealer'] - inst['total']) > 0.5: integrity_errors.append('institutional.total_mismatch')
     turnover = data['turnover']
-    if all(turnover.get(k) is not None for k in ('listed', 'otc', 'total')):
-        if abs(turnover['listed'] + turnover['otc'] - turnover['total']) > 1:
-            integrity_errors.append('turnover.total_mismatch')
+    if all(turnover.get(k) is not None for k in ('listed', 'otc', 'total')) and abs(turnover['listed'] + turnover['otc'] - turnover['total']) > 1: integrity_errors.append('turnover.total_mismatch')
     out = {'ok': not unavailable and not integrity_errors, 'source': 'SPOT', 'date': d, 'retrieved_at': datetime.now(timezone.utc).isoformat(), 'timezone': 'UTC', 'data': data, 'missing_required': [], 'unavailable_fields': unavailable, 'integrity_errors': integrity_errors}
     for p in (root / 'snapshots' / d / 'spot-snapshot.json', root / 'spot' / f'{d}.json'):
         p.parent.mkdir(parents=True, exist_ok=True); p.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
