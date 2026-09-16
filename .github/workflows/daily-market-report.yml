@@ -1,16 +1,14 @@
-name: Daily Market Report
+name: Daily Market Report (legacy manual)
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
-  schedule:
-    - cron: '0 0 * * 1-5'
 
 permissions:
   contents: write
 
+# The authoritative daily collection is handled by daily-snapshot.yml.
+# This legacy workflow is manual-only to prevent duplicate collection and
+# conflicting spot-data validation failures.
 jobs:
   generate-report:
     runs-on: ubuntu-latest
