@@ -269,11 +269,33 @@
 
 ### 6. 台灣相關 ADR
 
-| 項目 | 收盤／最新值 | 漲跌幅 |
-|---|---:|---:|
-| 台積電 ADR | TBD | TBD |
-| 聯電 ADR | TBD | TBD |
-| 日月光 ADR | TBD | TBD |
+**主要資料來源：** `Yahoo Finance Chart API`
+
+**取得方式：** `Python requests／HTTP JSON`
+
+**備援方式：** `Yahoo Finance 網頁爬蟲或其他公開金融資料網站`
+
+**來源策略：** API 優先；API 失敗、資料缺漏或格式異常時，啟用爬蟲備援。
+
+**目前狀態：** `技術上可行，待實際程式測試`
+
+| 項目 | Yahoo Finance 代號 | 收盤／最新值 | 漲跌點 | 漲跌幅 |
+|---|---|---:|---:|---:|
+| 台積電 ADR | `TSM` | TBD | TBD | TBD |
+| 聯電 ADR | `UMC` | TBD | TBD | TBD |
+| 日月光投控 ADR | `ASX` | TBD | TBD | TBD |
+
+**資料處理規則：**
+
+- 取得美國市場最近一個可用交易日的 ADR 收盤價及漲跌資料。
+- ADR 價格以美元表示。
+- 保留美股交易日期、報價時間與時區。
+- ADR 美股交易時段與台股現貨交易時段不同，程式不得將 ADR 收盤時間直接視為台股當日收盤。
+- API 回傳成功且資料完整時，使用 API 資料。
+- API 失敗或資料不完整時，啟用爬蟲備援。
+- API 與爬蟲皆失敗時，標記為 `unavailable`，不得自行推估數值。
+- 保留 `data_source`、`source_type`、`retrieved_at`、`timezone` 等欄位。
+- ADR 與台股現貨之間的價差、匯率換算及溢價／折價，暫不於本項直接計算，後續另行定義。
 
 ### 7. 原油／黃金／Bitcoin
 
