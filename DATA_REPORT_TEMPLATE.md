@@ -13,7 +13,7 @@
 
 ### 1. 台股大盤行情
 
-**資料來源：** `twse-proxy`
+**資料來源：** `Cloudflare Worker：twse-proxy`
 
 | 項目 | 數值 | 單位 |
 |---|---:|---|
@@ -32,7 +32,7 @@
 
 #### 2.1 上市公司
 
-**資料來源：** `twse-proxy`
+**資料來源：** `Cloudflare Worker：twse-proxy`
 
 | 項目 | 家數 |
 |---|---:|
@@ -59,7 +59,7 @@
 
 ### 3. 三大法人現貨買賣超
 
-**資料來源：** `twse-proxy`
+**資料來源：** `Cloudflare Worker：twse-proxy`
 
 | 法人別 | 買賣超金額 | 單位 |
 |---|---:|---|
