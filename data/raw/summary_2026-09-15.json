@@ -1,0 +1,139 @@
+{
+  "source": "SPOT_RAW_DIAGNOSTIC",
+  "date": "2026-09-15",
+  "retrieved_at": "2026-09-16T08:43:06.870304+00:00",
+  "timezone": "UTC",
+  "endpoints": {
+    "twse_mi_index": {
+      "url": "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX?date=20260915&type=IND",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 273,
+      "file": "data/raw/twse_mi_index_2026-09-15.json",
+      "error": null
+    },
+    "twse_mi_index_ms": {
+      "url": "https://openapi.twse.com.tw/v1/exchangeReport/MI_INDEX?date=20260915&type=MS",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 273,
+      "file": "data/raw/twse_mi_index_ms_2026-09-15.json",
+      "error": null
+    },
+    "twse_listed_breadth": {
+      "url": "https://openapi.twse.com.tw/v1/exchangeReport/twtazu_od?date=20260915",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 2,
+      "file": "data/raw/twse_listed_breadth_2026-09-15.json",
+      "error": null
+    },
+    "twse_t86": {
+      "url": "https://www.twse.com.tw/rwd/zh/fund/T86?date=20260915&response=json&selectType=ALL",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json;charset=UTF-8",
+      "json_type": "dict",
+      "top_level_keys": [
+        "stat",
+        "date",
+        "title",
+        "hints",
+        "fields",
+        "data",
+        "selectType",
+        "notes",
+        "total"
+      ],
+      "list_length": null,
+      "file": "data/raw/twse_t86_2026-09-15.json",
+      "error": null
+    },
+    "twse_margin": {
+      "url": "https://openapi.twse.com.tw/v1/exchangeReport/MI_MARGN?date=20260915",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 1297,
+      "file": "data/raw/twse_margin_2026-09-15.json",
+      "error": null
+    },
+    "twse_sbl": {
+      "url": "https://openapi.twse.com.tw/v1/SBL/TWT96U?date=20260915",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 1237,
+      "file": "data/raw/twse_sbl_2026-09-15.json",
+      "error": null
+    },
+    "twse_turnover": {
+      "url": "https://openapi.twse.com.tw/v1/exchangeReport/FMTQIK?date=20260915",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 11,
+      "file": "data/raw/twse_turnover_2026-09-15.json",
+      "error": null
+    },
+    "tpex_quotes": {
+      "url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_quotes?date=20260915",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 1014,
+      "file": "data/raw/tpex_quotes_2026-09-15.json",
+      "error": null
+    },
+    "tpex_margin": {
+      "url": "https://www.tpex.org.tw/openapi/v1/tpex_mainboard_margin_balance?date=20260915",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 920,
+      "file": "data/raw/tpex_margin_2026-09-15.json",
+      "error": null
+    },
+    "tpex_sbl": {
+      "url": "https://www.tpex.org.tw/openapi/v1/tpex_margin_sbl?date=20260915",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 932,
+      "file": "data/raw/tpex_sbl_2026-09-15.json",
+      "error": null
+    },
+    "tpex_highlight": {
+      "url": "https://www.tpex.org.tw/openapi/v1/tpex_mainborad_highlight?date=20260915",
+      "ok": true,
+      "http_status": 200,
+      "content_type": "application/json",
+      "json_type": "list",
+      "top_level_keys": null,
+      "list_length": 1,
+      "file": "data/raw/tpex_highlight_2026-09-15.json",
+      "error": null
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "url": "https://www.tpex.org.tw/openapi/v1/tpex_mainborad_highlight?date=20260915",
+  "ok": true,
+  "http_status": 200,
+  "content_type": "application/json",
+  "json_type": "list",
+  "payload": [
+    {
+      "Date": "1150916",
+      "ListedCompanyNumbers": "892",
+      "AuthorizedCapital": "852124",
+      "MarketCapitalization": "10968655",
+      "DailyTradingValue": "183888",
+      "DailyTradingVolume": "778812",
+      "CloseIndex": "399.21",
+      "IndexChange": "10.48",
+      "PriceRiseCompanyNumbers": "581",
+      "LimitUpCompanyNumbers": "21",
+      "PriceDeclineCompanyNumbers": "205",
+      "LimitDownCompanyNumbers": "1",
+      "PriceFlatCompanyNumbers": "88",
+      "UnmatchedCompanyNumbersSuspensionStocksIncluded": "18"
+    }
+  ]
+}
