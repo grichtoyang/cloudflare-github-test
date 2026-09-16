@@ -1,99 +1,226 @@
 #!/usr/bin/env python3
 from __future__ import annotations
-import argparse,json,re,sys,time
-from datetime import datetime,timezone
+import argparse, json, re, sys, time
+from datetime import datetime, timezone
 from pathlib import Path
-from urllib.request import Request,urlopen
+from urllib.request import Request, urlopen
 
-TWSE_PROXY='https://twse-proxy.grichtoyang.workers.dev'
-TWSE='https://openapi.twse.com.tw/v1'
-TPEX='https://www.tpex.org.tw/openapi/v1'
+TWSE_PROXY = 'https://twse-proxy.grichtoyang.workers.dev'
+TWSE = 'https://openapi.twse.com.tw/v1'
+TPEX = 'https://www.tpex.org.tw/openapi/v1'
 
-def fetch(url,retries=3):
-    last=None
-    for i in range(retries):
+
+def fetch(url, retries=3):
+    last = None
+    for attempt in range(retries):
         try:
-            r=Request(url,headers={'accept':'application/json','user-agent':'daily-pre-market-analysis/2.2'})
-            with urlopen(r,timeout=60) as x:return json.loads(x.read().decode()),x.status
-        except Exception as e:
-            last=e
-            if i<retries-1: time.sleep(2**i)
+            req = Request(url, headers={'accept': 'application/json', 'user-agent': 'daily-pre-market-analysis/2.3'})
+            with urlopen(req, timeout=60) as response:
+                return json.loads(response.read().decode()), response.status
+        except Exception as exc:
+            last = exc
+            if attempt < retries - 1:
+                time.sleep(2 ** attempt)
     raise last
 
-def n(v):
-    if v is None:return None
-    s=re.sub(r'<[^>]+>','',str(v)).replace(',','').replace('%','').strip()
-    if s in ('','--','---','－','—','N/A','null','None'):return None
-    try:return float(s)
-    except:return None
 
-def rows(x):
-    if isinstance(x,list):return x
-    if isinstance(x,dict):
-        for k in ('data','data1','data8','aaData','result'):
-            if isinstance(x.get(k),list):return x[k]
+def number(value):
+    if value is None:
+        return None
+    text = re.sub(r'<[^>]+>', '', str(value)).replace(',', '').replace('%', '').strip()
+    if text in {'', '--', '---', '－', '—', 'N/A', 'null', 'None'}:
+        return None
+    try:
+        return float(text)
+    except (TypeError, ValueError):
+        return None
+
+
+def rows(payload):
+    if isinstance(payload, list):
+        return payload
+    if isinstance(payload, dict):
+        for key in ('data', 'data1', 'data8', 'aaData', 'result'):
+            value = payload.get(key)
+            if isinstance(value, list):
+                return value
     return []
 
-def val(row,names):
-    if not isinstance(row,dict):return None
-    for k in names:
-        if k in row:return n(row[k])
+
+def value(row, names):
+    if not isinstance(row, dict):
+        return None
+    for name in names:
+        if name in row:
+            parsed = number(row[name])
+            if parsed is not None:
+                return parsed
     return None
 
-def aggregate_breadth(rs):
-    up=down=unchanged=limit_up=limit_down=0
-    seen=False
-    for r in rs:
-        change=val(r,['漲跌','漲跌價差','change','Change'])
-        pct=val(r,['漲跌幅','漲跌百分比','change_percent','ChangePercent'])
-        if change is None and pct is None: continue
-        seen=True
-        if pct is not None and pct>=9.5: limit_up+=1
-        if pct is not None and pct<=-9.5: limit_down+=1
-        if change is not None:
-            if change>0: up+=1
-            elif change<0: down+=1
-            else: unchanged+=1
-        elif pct is not None:
-            if pct>0: up+=1
-            elif pct<0: down+=1
-            else: unchanged+=1
-    return {'up':up,'down':down,'unchanged':unchanged,'limit_up':limit_up,'limit_down':limit_down} if seen else {}
 
-def aggregate_sum(rs,names):
-    vals=[val(r,names) for r in rs]
-    vals=[x for x in vals if x is not None]
-    return sum(vals) if vals else None
+def breadth(items):
+    result = {'up': 0, 'down': 0, 'unchanged': 0, 'limit_up': 0, 'limit_down': 0}
+    seen = False
+    for item in items:
+        change = value(item, ['漲跌', '漲跌價差', 'change', 'Change'])
+        percent = value(item, ['漲跌幅', '漲跌百分比', 'change_percent', 'ChangePercent'])
+        if change is None and percent is None:
+            continue
+        seen = True
+        if percent is not None and percent >= 9.5:
+            result['limit_up'] += 1
+        if percent is not None and percent <= -9.5:
+            result['limit_down'] += 1
+        direction = change if change is not None else percent
+        result['up' if direction > 0 else 'down' if direction < 0 else 'unchanged'] += 1
+    return result if seen else {}
+
+
+def total(items, names):
+    values = [value(item, names) for item in items]
+    values = [item for item in values if item is not None]
+    return sum(values) if values else None
+
 
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--date',required=True);p.add_argument('--output-root',default='data');a=p.parse_args();d8=a.date.replace('-','');src={}
-    def get(name,url):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--date', required=True)
+    parser.add_argument('--output-root', default='data')
+    args = parser.parse_args()
+    date = args.date
+    date8 = date.replace('-', '')
+    sources = {}
+
+    def get(name, url):
         try:
-            x,s=fetch(url);src[name]={'url':url,'status':s,'ok':True};return x
-        except Exception as e:
-            src[name]={'url':url,'status':None,'ok':False,'error':str(e)};return None
-    proxy=get('twse_proxy',f'{TWSE_PROXY}?date={d8}') or {}
-    pd=proxy.get('data',{}) if isinstance(proxy,dict) else {};ta=pd.get('taiex') or {};st=pd.get('market_statistics') or {};br=pd.get('advance_decline') or {}
-    inst=rows(get('twse_institutional',f'{TWSE}/fund/T86?date={d8}&selectType=ALL'))
-    mar=rows(get('twse_margin',f'{TWSE}/exchangeReport/MI_MARGN?response=json&date={d8}'))
-    sbl=rows(get('twse_sbl',f'{TWSE}/SBL/TWT96U?response=json&date={d8}'))
-    fmt=rows(get('twse_turnover',f'{TWSE}/exchangeReport/FMTQIK?response=json&date={d8}'))
-    oq=rows(get('tpex_quotes',f'{TPEX}/tpex_mainboard_daily_close_quotes'))
-    om=rows(get('tpex_margin',f'{TPEX}/tpex_mainboard_margin_balance'))
-    os=rows(get('tpex_sbl',f'{TPEX}/tpex_margin_sbl'))
-    ot=rows(get('tpex_turnover',f'{TPEX}/tpex_mainboard_highlight'))
-    i=next((r for r in inst if isinstance(r,dict) and any(k in r for k in ['外陸資買賣超股數(不含外資自營商)','外資買賣超金額(元)','外陸資買賣超金額(元)'])),{})
-    m=mar[0] if mar else {};s=sbl[0] if sbl else {};f=fmt[0] if fmt else {}
-    foreign=val(i,['外陸資買賣超股數(不含外資自營商)','外資買賣超金額(元)','外陸資買賣超金額(元)']);trust=val(i,['投信買賣超股數','投信買賣超金額(元)']);dealer=val(i,['自營商買賣超股數','自營商買賣超金額(元)'])
-    listed=aggregate_breadth(rows(pd.get('listed_breadth'))) or aggregate_breadth(rows(pd.get('market_statistics')))
-    otc=aggregate_breadth(oq)
-    data={'taiex':{k:val(ta,v) for k,v in {'close':['close','收盤指數','收盤'],'open':['open','開盤指數','開盤'],'high':['high','最高指數','最高'],'low':['low','最低指數','最低'],'change_points':['change_points','漲跌點數','change'],'change_percent':['change_percent','漲跌百分比','change_pct']}.items()},'listed_breadth':listed,'otc_breadth':otc,'institutional':{'foreign':foreign,'investment_trust':trust,'dealer':dealer,'total':foreign+trust+dealer if None not in (foreign,trust,dealer) else None},'margin':{k:val(m,v) for k,v in {'financing_balance':['融資餘額(元)','融資餘額'],'financing_change':['融資增減(元)','融資增減'],'short_balance':['融券餘額(張)','融券餘額'],'short_change':['融券增減(張)','融券增減'],'maintenance_ratio':['融資維持率(%)','融資維持率']}.items()},'sbl':{k:val(s,v) for k,v in {'balance':['借券餘額','借券餘額(張)'],'short_sale_balance':['借券賣出餘額','借券賣出餘額(張)'],'short_sale_change':['借券賣出增減','借券賣出增減(張)']}.items()},'turnover':{'listed':val(f,['成交金額(元)','成交金額']),'otc':aggregate_sum(ot,['成交金額','成交金額(元)','成交額']),'total':None}}
-    data['taiex']['turnover_value']=val(st,['turnover_value','成交金額(元)','成交金額','turnover'])
-    if data['turnover']['listed'] is not None and data['turnover']['otc'] is not None:data['turnover']['total']=data['turnover']['listed']+data['turnover']['otc']
-    req={"taiex":['close','open','high','low','change_points','change_percent','turnover_value'],"listed_breadth":['up','down','unchanged','limit_up','limit_down'],"otc_breadth":['up','down','unchanged','limit_up','limit_down'],"institutional":['foreign','investment_trust','dealer','total'],"margin":['financing_balance','financing_change','short_balance','short_change','maintenance_ratio'],"sbl":['balance','short_sale_balance','short_sale_change'],"turnover":['listed','otc','total']}
-    missing=[f'{g}.{k}' for g,ks in req.items() for k in ks if data.get(g,{}).get(k) is None]
-    out={'ok':not missing,'source':'SPOT','date':a.date,'retrieved_at':datetime.now(timezone.utc).isoformat(),'timezone':'UTC','data':data,'sources':src,'missing_required':missing}
-    for path in (Path(a.output_root)/'snapshots'/a.date/'spot-snapshot.json',Path(a.output_root)/'spot'/f'{a.date}.json'):
-        path.parent.mkdir(parents=True,exist_ok=True);path.write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n')
-    print(json.dumps({'date':a.date,'ok':out['ok'],'missing_required':missing},ensure_ascii=False));return 0 if out['ok'] else 1
-if __name__=='__main__':sys.exit(main())
+            payload, status = fetch(url)
+            sources[name] = {'url': url, 'status': status, 'ok': status == 200}
+            if status != 200:
+                return None
+            return payload
+        except Exception as exc:
+            sources[name] = {'url': url, 'status': None, 'ok': False, 'error': str(exc)}
+            return None
+
+    proxy = get('twse_proxy', f'{TWSE_PROXY}?date={date8}') or {}
+    proxy_date = proxy.get('date') if isinstance(proxy, dict) else None
+    proxy_valid = proxy.get('ok') is True and proxy_date == date
+    if 'twse_proxy' in sources:
+        sources['twse_proxy']['date'] = proxy_date
+        sources['twse_proxy']['date_match'] = proxy_valid
+
+    payload = proxy.get('data', {}) if isinstance(proxy, dict) else {}
+    taiex = payload.get('taiex') or {}
+    statistics = payload.get('market_statistics') or {}
+    advance_decline = payload.get('advance_decline') or {}
+
+    inst = rows(get('twse_institutional', f'{TWSE}/fund/T86?date={date8}&selectType=ALL'))
+    margin = rows(get('twse_margin', f'{TWSE}/exchangeReport/MI_MARGN?response=json&date={date8}'))
+    sbl = rows(get('twse_sbl', f'{TWSE}/SBL/TWT96U?response=json&date={date8}'))
+    turnover = rows(get('twse_turnover', f'{TWSE}/exchangeReport/FMTQIK?response=json&date={date8}'))
+    otc_quotes = rows(get('tpex_quotes', f'{TPEX}/tpex_mainboard_daily_close_quotes'))
+    otc_turnover = rows(get('tpex_mainboard_highlight', f'{TPEX}/tpex_mainboard_highlight'))
+
+    institutional_row = next((row for row in inst if isinstance(row, dict) and any(key in row for key in ('外陸資買賣超股數(不含外資自營商)', '投信買賣超股數', '自營商買賣超股數'))), {})
+    margin_row = margin[0] if margin else {}
+    sbl_row = sbl[0] if sbl else {}
+    turnover_row = turnover[0] if turnover else {}
+
+    # Institutional values are deliberately shares only. Never mix share and money fields.
+    foreign = value(institutional_row, ['外陸資買賣超股數(不含外資自營商)'])
+    investment_trust = value(institutional_row, ['投信買賣超股數'])
+    dealer = value(institutional_row, ['自營商買賣超股數'])
+
+    listed = breadth(rows(payload.get('listed_breadth'))) or breadth(rows(advance_decline))
+    otc = breadth(otc_quotes)
+    listed_turnover = value(turnover_row, ['成交金額(元)', '成交金額'])
+    otc_turnover_value = total(otc_turnover, ['成交金額', '成交金額(元)', '成交額'])
+
+    data = {
+        'taiex': {
+            key: value(taiex, names) for key, names in {
+                'close': ['close', '收盤指數', '收盤'],
+                'open': ['open', '開盤指數', '開盤'],
+                'high': ['high', '最高指數', '最高'],
+                'low': ['low', '最低指數', '最低'],
+                'change_points': ['change_points', '漲跌點數', 'change'],
+                'change_percent': ['change_percent', '漲跌百分比', 'change_pct'],
+            }.items()
+        },
+        'listed_breadth': listed,
+        'otc_breadth': otc,
+        'institutional': {
+            'unit': 'shares',
+            'foreign': foreign,
+            'investment_trust': investment_trust,
+            'dealer': dealer,
+            'total': foreign + investment_trust + dealer if None not in (foreign, investment_trust, dealer) else None,
+        },
+        'margin': {
+            key: value(margin_row, names) for key, names in {
+                'financing_balance': ['融資餘額(元)', '融資餘額'],
+                'financing_change': ['融資增減(元)', '融資增減'],
+                'short_balance': ['融券餘額(張)', '融券餘額'],
+                'short_change': ['融券增減(張)', '融券增減'],
+                'maintenance_ratio': ['融資維持率(%)', '融資維持率'],
+            }.items()
+        },
+        'sbl': {
+            key: value(sbl_row, names) for key, names in {
+                'balance': ['借券餘額', '借券餘額(張)'],
+                'short_sale_balance': ['借券賣出餘額', '借券賣出餘額(張)'],
+                'short_sale_change': ['借券賣出增減', '借券賣出增減(張)'],
+            }.items()
+        },
+        'turnover': {
+            'listed': listed_turnover,
+            'otc': otc_turnover_value,
+            'total': listed_turnover + otc_turnover_value if None not in (listed_turnover, otc_turnover_value) else None,
+        },
+    }
+    data['taiex']['turnover_value'] = value(statistics, ['turnover_value', '成交金額(元)', '成交金額', 'turnover'])
+
+    required = {
+        'taiex': ['close', 'open', 'high', 'low', 'change_points', 'change_percent', 'turnover_value'],
+        'listed_breadth': ['up', 'down', 'unchanged', 'limit_up', 'limit_down'],
+        'otc_breadth': ['up', 'down', 'unchanged', 'limit_up', 'limit_down'],
+        'institutional': ['foreign', 'investment_trust', 'dealer', 'total'],
+        'margin': ['financing_balance', 'financing_change', 'short_balance', 'short_change', 'maintenance_ratio'],
+        'sbl': ['balance', 'short_sale_balance', 'short_sale_change'],
+        'turnover': ['listed', 'otc', 'total'],
+    }
+    missing = [f'{group}.{field}' for group, fields in required.items() for field in fields if data.get(group, {}).get(field) is None]
+    integrity_errors = []
+    if not proxy_valid:
+        integrity_errors.append('twse_proxy.date_mismatch_or_not_ok')
+    if not otc_quotes:
+        integrity_errors.append('tpex_quotes.empty')
+    if not inst:
+        integrity_errors.append('twse_institutional.empty')
+    if not margin:
+        integrity_errors.append('twse_margin.empty')
+    if not sbl:
+        integrity_errors.append('twse_sbl.empty')
+    if not turnover:
+        integrity_errors.append('twse_turnover.empty')
+
+    out = {
+        'ok': not missing and not integrity_errors,
+        'source': 'SPOT',
+        'date': date,
+        'retrieved_at': datetime.now(timezone.utc).isoformat(),
+        'timezone': 'UTC',
+        'data': data,
+        'sources': sources,
+        'missing_required': missing,
+        'integrity_errors': integrity_errors,
+    }
+    for path in (Path(args.output_root) / 'snapshots' / date / 'spot-snapshot.json', Path(args.output_root) / 'spot' / f'{date}.json'):
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    print(json.dumps({'date': date, 'ok': out['ok'], 'missing_required': missing, 'integrity_errors': integrity_errors}, ensure_ascii=False))
+    return 0 if out['ok'] else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())
