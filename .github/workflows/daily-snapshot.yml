@@ -43,17 +43,11 @@ jobs:
           runtime_hour="$(TZ=Asia/Taipei date '+%H')"
           runtime_minute="$(TZ=Asia/Taipei date '+%M')"
           runtime_minutes=$((10#$runtime_hour * 60 + 10#$runtime_minute))
-          if (( runtime_minutes >= 300 && runtime_minutes < 900 )); then
-            allowed=true
-          else
-            allowed=false
-          fi
+          allowed=false
+          if (( runtime_minutes >= 300 && runtime_minutes < 900 )); then allowed=true; fi
           echo "runtime_date=${runtime_date}" >> "$GITHUB_OUTPUT"
           echo "allowed=${allowed}" >> "$GITHUB_OUTPUT"
-          if [[ "${allowed}" != true ]]; then
-            echo 'Outside premarket window; no snapshot generated.'
-            exit 0
-          fi
+          if [[ "${allowed}" != true ]]; then exit 0; fi
           t0_date="$(python scripts/resolve_t0.py | tr -d '[:space:]')"
           [[ "${t0_date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
           echo "t0=${t0_date}" >> "$GITHUB_OUTPUT"
@@ -61,6 +55,7 @@ jobs:
           echo "T0 Date: ${t0_date}"
 
       - name: Build TAIFEX snapshot
+        id: taifex
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
@@ -68,6 +63,7 @@ jobs:
           python scripts/daily_snapshot.py --date "${{ steps.dates.outputs.t0 }}" --analysis-date "${{ steps.dates.outputs.runtime_date }}" --base-url "${TAIFEX_PROXY_BASE_URL}"
 
       - name: Build TWSE snapshot
+        id: twse
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
@@ -84,6 +80,7 @@ jobs:
           python scripts/spot_snapshot.py --date '${{ steps.dates.outputs.t0 }}'
 
       - name: Build premarket manifest
+        id: manifest
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
@@ -91,6 +88,7 @@ jobs:
           python scripts/build_premarket_manifest.py --date '${{ steps.dates.outputs.t0 }}' --analysis-date '${{ steps.dates.outputs.runtime_date }}'
 
       - name: Build premarket AI inputs
+        id: ai_inputs
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
@@ -98,6 +96,7 @@ jobs:
           python scripts/build_premarket_ai_inputs.py --analysis-date '${{ steps.dates.outputs.runtime_date }}' --t0-date '${{ steps.dates.outputs.t0 }}'
 
       - name: Validate AI inputs
+        id: validator
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
@@ -105,19 +104,35 @@ jobs:
           python scripts/validate_premarket_ai_inputs.py --analysis-date '${{ steps.dates.outputs.runtime_date }}' --t0-date '${{ steps.dates.outputs.t0 }}'
 
       - name: READY_FOR_ANALYSIS gate
+        id: ready_gate
         if: always()
         shell: bash
+        env:
+          ALLOWED: ${{ steps.dates.outputs.allowed }}
+          TAIFEX: ${{ steps.taifex.outcome }}
+          TWSE: ${{ steps.twse.outcome }}
+          SPOT: ${{ steps.spot.outcome }}
+          MANIFEST: ${{ steps.manifest.outcome }}
+          AI_INPUTS: ${{ steps.ai_inputs.outcome }}
+          VALIDATOR: ${{ steps.validator.outcome }}
         run: |
           set -euo pipefail
-          if [[ '${{ steps.dates.outputs.allowed }}' != 'true' ]]; then
+          if [[ "${ALLOWED}" != true ]]; then
             echo 'READY_FOR_ANALYSIS=false'
             exit 0
           fi
-          [[ '${{ steps.spot.outcome }}' == success ]]
+          for status in "${TAIFEX}" "${TWSE}" "${SPOT}" "${MANIFEST}" "${AI_INPUTS}" "${VALIDATOR}"; do
+            [[ "${status}" == success ]]
+          done
           echo 'READY_FOR_ANALYSIS=true'
+          {
+            echo '## READY_FOR_ANALYSIS'
+            echo ''
+            echo 'READY_FOR_ANALYSIS=true'
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Commit and push generated data
-        if: steps.dates.outputs.allowed == 'true'
+        if: steps.ready_gate.outcome == 'success' && steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
           set -euo pipefail
