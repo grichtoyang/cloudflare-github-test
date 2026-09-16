@@ -38,20 +38,12 @@ jobs:
         run: |
           set -euo pipefail
           runtime_date="$(TZ=Asia/Taipei date '+%Y-%m-%d')"
-          runtime_hour="$(TZ=Asia/Taipei date '+%H')"
-          runtime_minute="$(TZ=Asia/Taipei date '+%M')"
-          runtime_minutes=$((10#$runtime_hour * 60 + 10#$runtime_minute))
-          allowed=false
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]] || (( runtime_minutes >= 300 && runtime_minutes < 1020 )); then allowed=true; fi
           echo "runtime_date=${runtime_date}" >> "$GITHUB_OUTPUT"
-          echo "allowed=${allowed}" >> "$GITHUB_OUTPUT"
-          if [[ "${allowed}" != true ]]; then exit 0; fi
           t0_date="$(python scripts/resolve_t0.py | tr -d '[:space:]')"
           [[ "${t0_date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
           echo "t0=${t0_date}" >> "$GITHUB_OUTPUT"
       - name: Build TAIFEX snapshot
         id: taifex
-        if: steps.dates.outputs.allowed == 'true'
         run: |
           set +e
           python scripts/daily_snapshot.py --date "${{ steps.dates.outputs.t0 }}" --analysis-date "${{ steps.dates.outputs.runtime_date }}" --base-url "${TAIFEX_PROXY_BASE_URL}"
@@ -60,7 +52,6 @@ jobs:
           if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
       - name: Build TWSE snapshot
         id: twse
-        if: steps.dates.outputs.allowed == 'true'
         run: |
           set +e
           python scripts/twse_snapshot.py --date '${{ steps.dates.outputs.t0 }}' --base-url "${TWSE_PROXY_BASE_URL}?date=${{ steps.dates.outputs.t0 }}"
@@ -69,11 +60,9 @@ jobs:
           if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
       - name: Collect raw TWSE and TPEX spot JSON
         id: spot_raw
-        if: steps.dates.outputs.allowed == 'true'
-        run: |
-          python scripts/diagnose_spot_raw.py --date '${{ steps.dates.outputs.t0 }}'
+        run: python scripts/diagnose_spot_raw.py --date '${{ steps.dates.outputs.t0 }}'
       - name: Upload raw spot JSON diagnostic
-        if: always() && steps.dates.outputs.allowed == 'true'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: spot-raw-json-${{ steps.dates.outputs.t0 }}
@@ -82,7 +71,6 @@ jobs:
           retention-days: 14
       - name: Build SPOT snapshot
         id: spot
-        if: steps.dates.outputs.allowed == 'true'
         run: |
           set +e
           python scripts/spot_snapshot.py --date '${{ steps.dates.outputs.t0 }}'
@@ -91,11 +79,9 @@ jobs:
           if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
       - name: Generate strict SPOT report
         id: spot_report
-        if: steps.dates.outputs.allowed == 'true'
         run: python scripts/generate_daily_report.py --date '${{ steps.dates.outputs.t0 }}'
       - name: Build premarket manifest
         id: manifest
-        if: steps.dates.outputs.allowed == 'true'
         run: |
           set +e
           python scripts/build_premarket_manifest.py --date '${{ steps.dates.outputs.t0 }}' --analysis-date '${{ steps.dates.outputs.runtime_date }}'
@@ -104,7 +90,6 @@ jobs:
           if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
       - name: Build premarket AI inputs
         id: ai_inputs
-        if: steps.dates.outputs.allowed == 'true'
         run: |
           set +e
           python scripts/build_premarket_ai_inputs.py --analysis-date '${{ steps.dates.outputs.runtime_date }}' --t0-date '${{ steps.dates.outputs.t0 }}'
@@ -113,7 +98,6 @@ jobs:
           if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
       - name: Validate AI inputs
         id: validator
-        if: steps.dates.outputs.allowed == 'true'
         run: |
           set +e
           python scripts/validate_premarket_ai_inputs.py --analysis-date '${{ steps.dates.outputs.runtime_date }}' --t0-date '${{ steps.dates.outputs.t0 }}'
@@ -124,7 +108,6 @@ jobs:
         id: ready_gate
         if: always()
         env:
-          ALLOWED: ${{ steps.dates.outputs.allowed }}
           TAIFEX: ${{ steps.taifex.outcome }}
           TWSE: ${{ steps.twse.outcome }}
           SPOT: ${{ steps.spot.outcome }}
@@ -134,7 +117,6 @@ jobs:
           VALIDATOR: ${{ steps.validator.outcome }}
         run: |
           set -euo pipefail
-          if [[ "${ALLOWED}" != true ]]; then echo 'READY_FOR_ANALYSIS=false'; exit 0; fi
           for status in "${TAIFEX}" "${TWSE}" "${SPOT}" "${SPOT_REPORT}" "${MANIFEST}" "${AI_INPUTS}" "${VALIDATOR}"; do [[ "${status}" == success ]]; done
           python - <<'PY'
           import json
@@ -150,7 +132,7 @@ jobs:
           PY
           echo 'READY_FOR_ANALYSIS=true'
       - name: Commit and push generated data and reports
-        if: steps.ready_gate.outcome == 'success' && steps.dates.outputs.allowed == 'true'
+        if: steps.ready_gate.outcome == 'success'
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
