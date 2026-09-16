@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "scope": "spot",
+  "fields": {
+    "taiex": {"source": "TWSE OpenAPI", "endpoint": "MI_INDEX", "status": "mapped"},
+    "listed_breadth": {"source": "TWSE OpenAPI", "endpoint": "twtazu_od", "status": "mapped"},
+    "otc_breadth": {"source": "TPEX OpenAPI", "endpoint": "tpex_mainboard_quotes", "status": "mapped"},
+    "institutional": {"source": "TWSE OpenAPI", "endpoint": "T86", "status": "mapped"},
+    "margin": {"source": "TWSE OpenAPI + TPEX OpenAPI", "endpoint": "MI_MARGN + tpex_mainboard_margin_balance", "status": "mapped"},
+    "sbl": {"source": "TWSE OpenAPI + TPEX OpenAPI", "endpoint": "TWT96U + tpex_margin_sbl", "status": "mapped"},
+    "turnover": {"source": "TWSE OpenAPI + TPEX OpenAPI", "endpoint": "FMTQIK + tpex_mainborad_highlight", "status": "mapped"}
+  },
+  "rule": "No estimation; unavailable is explicit"
+}
