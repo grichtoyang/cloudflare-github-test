@@ -121,14 +121,33 @@
 
 ### 1. 美股指數
 
-| 項目 | 收盤／最新值 | 漲跌點 | 漲跌幅 |
-|---|---:|---:|---:|
-| S&P 500 | TBD | TBD | TBD |
-| Nasdaq Composite | TBD | TBD | TBD |
-| Nasdaq 100 | TBD | TBD | TBD |
-| Dow Jones | TBD | TBD | TBD |
-| 費城半導體指數 SOX | TBD | TBD | TBD |
-| VIX | TBD | TBD | TBD |
+**主要資料來源：** `Yahoo Finance Chart API`
+
+**取得方式：** `Python requests／HTTP JSON`
+
+**備援方式：** `Yahoo Finance 網頁爬蟲或其他公開金融資料網站`
+
+**來源策略：** API 優先；API 失敗、資料缺漏或格式異常時，啟用爬蟲備援。
+
+**目前狀態：** `技術上可行，待實際程式測試`
+
+| 項目 | Yahoo Finance 代號 | 收盤／最新值 | 漲跌點 | 漲跌幅 |
+|---|---|---:|---:|---:|
+| S&P 500 | `^GSPC` | TBD | TBD | TBD |
+| Nasdaq Composite | `^IXIC` | TBD | TBD | TBD |
+| Nasdaq 100 | `^NDX` | TBD | TBD | TBD |
+| Dow Jones | `^DJI` | TBD | TBD | TBD |
+| 費城半導體指數 SOX | `^SOX` | TBD | TBD | TBD |
+| VIX | `^VIX` | TBD | TBD | TBD |
+
+**資料處理規則：**
+
+- 取得前一交易日收盤價及漲跌資料。
+- API 回傳成功且資料完整時，使用 API 資料。
+- API 失敗或資料不完整時，啟用爬蟲備援。
+- API 與爬蟲皆失敗時，標記為 `unavailable`，不得自行推估數值。
+- 保留 `data_source`、`source_type`、`retrieved_at`、`timezone` 等欄位。
+- Yahoo Finance 資料的長期穩定性、延遲及使用限制，於程式測試階段另行確認。
 
 ### 2. 亞洲主要指數
 
