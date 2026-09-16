@@ -78,7 +78,9 @@ def main():
     om = load_raw(root, 'tpex_margin', d); os = load_raw(root, 'tpex_sbl', d); oh = load_raw(root, 'tpex_highlight', d)
     idx = first(mi, lambda r: r.get('指數') == '發行量加權股價指數'); listed = first(breadth, lambda r: r.get('類型') == '股票'); tr = first(turn)
     close = num(ta.get('close')) if ta else field(idx, '收盤指數')
-    change = num(ta.get('change')) if ta else field(idx, '漲跌點數')
+    raw_change = num(ta.get('change')) if ta else field(idx, '漲跌點數')
+    change_direction = str(ta.get('direction', '')).strip() if ta else str(idx.get('漲跌', '')).strip()
+    change = -abs(raw_change) if change_direction == '-' and raw_change is not None else abs(raw_change) if change_direction == '+' and raw_change is not None else raw_change
     change_pct = num(ta.get('change_percent')) if ta else field(idx, '漲跌百分比')
     listed_up = table_value(br, '上漲(漲停)', '股票') if br else field(listed, '上漲')
     listed_down = table_value(br, '下跌(跌停)', '股票') if br else field(listed, '下跌')
@@ -90,9 +92,22 @@ def main():
     data = {'taiex': {'close': close, 'open': None, 'high': None, 'low': None, 'change_points': change, 'change_percent': change_pct, 'turnover_value': listed_turn}, 'listed_breadth': {'up': listed_up, 'down': listed_down, 'unchanged': listed_flat, 'limit_up': None, 'limit_down': None}, 'otc_breadth': {'up': field(otc, 'PriceRiseCompanyNumbers'), 'down': field(otc, 'PriceDeclineCompanyNumbers'), 'unchanged': field(otc, 'PriceFlatCompanyNumbers'), 'limit_up': field(otc, 'LimitUpCompanyNumbers'), 'limit_down': field(otc, 'LimitDownCompanyNumbers')}, 'institutional': {'unit': 'shares', 'foreign': total(t86, '外陸資買賣超股數(不含外資自營商)'), 'investment_trust': total(t86, '投信買賣超股數'), 'dealer': total(t86, '自營商買賣超股數'), 'total': total(t86, '三大法人買賣超股數')}, 'margin': {'financing_balance': add(tw_fin, tp_fin), 'financing_change': add(tw_fin_ch, total(om, 'MarginPurchase')), 'short_balance': add(total(margin, '融券今日餘額'), total(om, 'ShortSaleBalance')), 'short_change': add(add(total(margin, '融券賣出'), -total(margin, '融券買進')) if total(margin, '融券賣出') is not None and total(margin, '融券買進') is not None else None, total(om, 'ShortSale')), 'maintenance_ratio': None}, 'sbl': {'balance': total(os, 'SecuritiesBorrowingBalanceOfTheMarketDay'), 'short_sale_balance': None, 'short_sale_change': None}, 'turnover': {'listed': listed_turn, 'otc': otc_turn, 'total': add(listed_turn, otc_turn)}}
     optional = {'taiex.open', 'taiex.high', 'taiex.low', 'listed_breadth.limit_up', 'listed_breadth.limit_down', 'margin.maintenance_ratio', 'sbl.balance', 'sbl.short_sale_balance', 'sbl.short_sale_change'}
     unavailable = [f'{g}.{k}' for g, obj in data.items() for k, v in obj.items() if v is None and f'{g}.{k}' not in optional and k != 'unit']
-    out = {'ok': not unavailable, 'source': 'SPOT', 'date': d, 'retrieved_at': datetime.now(timezone.utc).isoformat(), 'timezone': 'UTC', 'data': data, 'missing_required': [], 'unavailable_fields': unavailable, 'integrity_errors': []}
+    integrity_errors = []
+    if close is not None and change is not None and change_pct is not None:
+        expected_pct = change / (close - change) * 100 if close - change != 0 else None
+        if expected_pct is not None and abs(expected_pct - change_pct) > 0.10:
+            integrity_errors.append(f'taiex.change_sign_or_percent_mismatch: expected≈{expected_pct:.2f}, actual={change_pct:.2f}')
+    inst = data['institutional']
+    if all(inst.get(k) is not None for k in ('foreign', 'investment_trust', 'dealer', 'total')):
+        if abs(inst['foreign'] + inst['investment_trust'] + inst['dealer'] - inst['total']) > 0.5:
+            integrity_errors.append('institutional.total_mismatch')
+    turnover = data['turnover']
+    if all(turnover.get(k) is not None for k in ('listed', 'otc', 'total')):
+        if abs(turnover['listed'] + turnover['otc'] - turnover['total']) > 1:
+            integrity_errors.append('turnover.total_mismatch')
+    out = {'ok': not unavailable and not integrity_errors, 'source': 'SPOT', 'date': d, 'retrieved_at': datetime.now(timezone.utc).isoformat(), 'timezone': 'UTC', 'data': data, 'missing_required': [], 'unavailable_fields': unavailable, 'integrity_errors': integrity_errors}
     for p in (root / 'snapshots' / d / 'spot-snapshot.json', root / 'spot' / f'{d}.json'):
         p.parent.mkdir(parents=True, exist_ok=True); p.write_text(json.dumps(out, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
-    print(json.dumps({'date': d, 'ok': out['ok'], 'unavailable_fields': unavailable, 'integrity_errors': []}, ensure_ascii=False)); return 0 if out['ok'] else 1
+    print(json.dumps({'date': d, 'ok': out['ok'], 'unavailable_fields': unavailable, 'integrity_errors': integrity_errors}, ensure_ascii=False)); return 0 if out['ok'] else 1
 
 if __name__ == '__main__': sys.exit(main())
