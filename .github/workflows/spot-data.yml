@@ -1,6 +1,12 @@
 name: Spot Data Collection
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/spot_snapshot.py'
+      - 'scripts/generate_daily_report.py'
+      - '.github/workflows/spot-data.yml'
   workflow_dispatch:
   schedule:
     - cron: '0 0 * * 1-5'
