@@ -2,7 +2,7 @@
   "ok": true,
   "source": "SPOT",
   "date": "2026-09-15",
-  "retrieved_at": "2026-09-16T08:43:26.011826+00:00",
+  "retrieved_at": "2026-09-16T08:44:52.899613+00:00",
   "timezone": "UTC",
   "data": {
     "taiex": {
@@ -15,11 +15,11 @@
       "turnover_value": 634706804618.0
     },
     "listed_breadth": {
-      "up": 3144.0,
-      "down": 9578.0,
-      "unchanged": 459.0,
-      "limit_up": 43.0,
-      "limit_down": 355.0
+      "上漲": 342.0,
+      "下跌": 671.0,
+      "持平": 59.0,
+      "漲停": 19.0,
+      "跌停": 10.0
     },
     "otc_breadth": {
       "up": 581.0,
@@ -36,14 +36,14 @@
       "total": -1204892306.0
     },
     "margin": {
-      "financing_balance": 14208.0,
-      "financing_change": 269.0,
-      "short_balance": 10.0,
-      "short_change": 9.0,
+      "financing_balance": 11484606.0,
+      "financing_change": 77287.0,
+      "short_balance": 238081.0,
+      "short_change": 7289.0,
       "maintenance_ratio": null
     },
     "sbl": {
-      "balance": 150000.0,
+      "balance": 2054282792.0,
       "short_sale_balance": null,
       "short_sale_change": null
     },
