@@ -119,7 +119,70 @@
 
 ## 二、重要市場
 
-TBD
+### 1. 美股指數
+
+| 項目 | 收盤／最新值 | 漲跌點 | 漲跌幅 |
+|---|---:|---:|---:|
+| S&P 500 | TBD | TBD | TBD |
+| Nasdaq Composite | TBD | TBD | TBD |
+| Nasdaq 100 | TBD | TBD | TBD |
+| Dow Jones | TBD | TBD | TBD |
+| 費城半導體指數 SOX | TBD | TBD | TBD |
+| VIX | TBD | TBD | TBD |
+
+### 2. 亞洲主要指數
+
+| 項目 | 收盤／最新值 | 漲跌點 | 漲跌幅 |
+|---|---:|---:|---:|
+| 日經 225 | TBD | TBD | TBD |
+| 韓國 KOSPI | TBD | TBD | TBD |
+| 香港恆生指數 | TBD | TBD | TBD |
+
+### 3. 美股指數期貨
+
+| 項目 | 最新值 | 漲跌點 | 漲跌幅 |
+|---|---:|---:|---:|
+| S&P 500 Futures | TBD | TBD | TBD |
+| Nasdaq 100 Futures | TBD | TBD | TBD |
+
+### 4. 美國國債殖利率
+
+| 項目 | 殖利率 | 日變化 |
+|---|---:|---:|
+| 美國 2 年期殖利率 | TBD | TBD |
+| 美國 10 年期殖利率 | TBD | TBD |
+| 美國 30 年期殖利率 | TBD | TBD |
+
+### 5. 主要匯率
+
+| 項目 | 最新值 | 漲跌／變化 |
+|---|---:|---:|
+| USD/TWD | TBD | TBD |
+| DXY 美元指數 | TBD | TBD |
+| USD/JPY | TBD | TBD |
+| USD/KRW | TBD | TBD |
+
+### 6. 台灣相關 ADR
+
+| 項目 | 收盤／最新值 | 漲跌幅 |
+|---|---:|---:|
+| 台積電 ADR | TBD | TBD |
+| 聯電 ADR | TBD | TBD |
+| 日月光 ADR | TBD | TBD |
+
+### 7. 原油／黃金／Bitcoin
+
+| 項目 | 收盤／最新值 | 漲跌幅 |
+|---|---:|---:|
+| WTI 原油 | TBD | TBD |
+| 黃金 | TBD | TBD |
+| Bitcoin BTC | TBD | TBD |
+
+### 8. 重大經濟數據與央行事件
+
+| 事件／數據 | 公布時間 | 市場預期 | 實際結果 | 備註 |
+|---|---|---|---|---|
+| TBD | TBD | TBD | TBD | TBD |
 
 ---
 
