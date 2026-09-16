@@ -23,28 +23,31 @@ jobs:
         shell: bash
         run: echo "report_date=$(TZ=Asia/Taipei date +%F)" >> "$GITHUB_OUTPUT"
 
-      - name: Generate report
+      - name: Collect spot data
+        run: python scripts/spot_snapshot.py --date "${{ steps.date.outputs.report_date }}"
+
+      - name: Generate spot report
         run: python scripts/generate_daily_report.py --date "${{ steps.date.outputs.report_date }}"
 
-      - name: Verify generated report
+      - name: Verify spot artifacts
         shell: bash
         run: |
-          report="reports/${{ steps.date.outputs.report_date }}.md"
-          test -s "$report"
-          grep -Eq '台指期行情筆數：[1-9][0-9]*' "$report"
-          grep -Eq '法人交易筆數：[1-9][0-9]*' "$report"
-          echo "Report verification passed."
-          grep -E '台指期行情筆數|法人交易筆數|法人 OI 筆數|選擇權辨識筆數' "$report"
+          date="${{ steps.date.outputs.report_date }}"
+          test -s "data/spot/${date}.json"
+          test -s "data/snapshots/${date}/spot-snapshot.json"
+          test -s "reports/${date}.md"
+          grep -q '^## 一、現貨' "reports/${date}.md"
+          echo "Spot report verification passed."
 
-      - name: Commit report
+      - name: Commit spot artifacts
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+users.noreply.github.com"
-          git add reports/
+          git add data/spot data/snapshots reports
           if git diff --cached --quiet; then
-            echo "No report changes to commit."
+            echo "No spot changes."
           else
-            git commit -m "Generate daily market report ${{ steps.date.outputs.report_date }}"
+            git commit -m "Collect spot data and generate report ${{ steps.date.outputs.report_date }}"
             git push
           fi
