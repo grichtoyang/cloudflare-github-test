@@ -3,14 +3,13 @@ name: Daily Premarket Snapshot
 on:
   workflow_dispatch:
   push:
-    branches:
-      - main
+    branches: [main]
     paths:
-      - ".github/workflows/daily-snapshot.yml"
-      - "scripts/**"
-      - "tests/**"
+      - '.github/workflows/daily-snapshot.yml'
+      - 'scripts/**'
+      - 'tests/**'
   schedule:
-    - cron: "0 0 * * 1-5"
+    - cron: '0 0 * * 1-5'
 
 permissions:
   contents: write
@@ -33,314 +32,101 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: '3.12'
 
-      - name: Verify proxy configuration
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "${TAIFEX_PROXY_BASE_URL}"
-          test -n "${TWSE_PROXY_BASE_URL}"
-          echo "TAIFEX proxy: ${TAIFEX_PROXY_BASE_URL}"
-          echo "TWSE proxy: ${TWSE_PROXY_BASE_URL}"
-
-      - name: Resolve Taiwan runtime session
-        id: session
+      - name: Resolve Taiwan session and dates
+        id: dates
         shell: bash
         run: |
           set -euo pipefail
           runtime_date="$(TZ=Asia/Taipei date '+%Y-%m-%d')"
-          runtime_time="$(TZ=Asia/Taipei date '+%H:%M:%S')"
           runtime_hour="$(TZ=Asia/Taipei date '+%H')"
           runtime_minute="$(TZ=Asia/Taipei date '+%M')"
           runtime_minutes=$((10#$runtime_hour * 60 + 10#$runtime_minute))
           if (( runtime_minutes >= 300 && runtime_minutes < 900 )); then
-            session_allowed="true"
-            session_state="PREMARKET_ALLOWED"
+            allowed=true
           else
-            session_allowed="false"
-            session_state="OUTSIDE_PREMARKET_WINDOW"
+            allowed=false
           fi
-          {
-            echo "runtime_date=${runtime_date}"
-            echo "runtime_time=${runtime_time}"
-            echo "runtime_minutes=${runtime_minutes}"
-            echo "session_allowed=${session_allowed}"
-            echo "session_state=${session_state}"
-          } >> "${GITHUB_OUTPUT}"
-          echo "Taiwan runtime date: ${runtime_date}"
-          echo "Taiwan runtime time: ${runtime_time}"
-          echo "Taiwan runtime minutes: ${runtime_minutes}"
-          echo "Session state: ${session_state}"
-          echo "Session allowed: ${session_allowed}"
-
-      - name: Handle outside premarket window
-        if: steps.session.outputs.session_allowed != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "Outside premarket window; no snapshot will be generated."
-          {
-            echo "## READY_FOR_ANALYSIS"
-            echo ""
-            echo "READY_FOR_ANALYSIS=false"
-            echo "SESSION_STATE=${{ steps.session.outputs.session_state }}"
-          } >> "${GITHUB_STEP_SUMMARY}"
-
-      - name: Resolve analysis date
-        id: analysis_date
-        if: steps.session.outputs.session_allowed == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          analysis_date="${{ steps.session.outputs.runtime_date }}"
-          [[ "${analysis_date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
-          echo "analysis_date=${analysis_date}" >> "${GITHUB_OUTPUT}"
-          echo "Analysis Date: ${analysis_date}"
-
-      - name: Resolve T0 trading date
-        id: t0
-        if: steps.session.outputs.session_allowed == 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          analysis_date="${{ steps.analysis_date.outputs.analysis_date }}"
-          echo "Resolving T0 from Analysis Date: ${analysis_date}"
-          t0_date="$(python scripts/resolve_t0.py)"
-          t0_date="$(printf '%s' "${t0_date}" | tr -d '[:space:]')"
+          echo "runtime_date=${runtime_date}" >> "$GITHUB_OUTPUT"
+          echo "allowed=${allowed}" >> "$GITHUB_OUTPUT"
+          if [[ "${allowed}" != true ]]; then
+            echo 'Outside premarket window; no snapshot generated.'
+            exit 0
+          fi
+          t0_date="$(python scripts/resolve_t0.py | tr -d '[:space:]')"
           [[ "${t0_date}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
-          echo "Resolved T0 date: ${t0_date}"
-          echo "t0=${t0_date}" >> "${GITHUB_OUTPUT}"
-          {
-            echo "## Date Resolution"
-            echo ""
-            echo "Analysis Date: ${analysis_date}"
-            echo "T0 Date: ${t0_date}"
-          } >> "${GITHUB_STEP_SUMMARY}"
+          echo "t0=${t0_date}" >> "$GITHUB_OUTPUT"
+          echo "Analysis Date: ${runtime_date}"
+          echo "T0 Date: ${t0_date}"
 
       - name: Build TAIFEX snapshot
-        id: taifex
-        if: steps.session.outputs.session_allowed == 'true'
+        if: steps.dates.outputs.allowed == 'true'
         shell: bash
-        env:
-          ANALYSIS_DATE: ${{ steps.analysis_date.outputs.analysis_date }}
-          T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
-          [[ -n "${T0_DATE}" ]]
-          [[ "${T0_DATE}" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]]
-          [[ -n "${ANALYSIS_DATE}" ]]
-          echo "Analysis Date: ${ANALYSIS_DATE}"
-          echo "T0 Date: ${T0_DATE}"
-          set +e
-          python scripts/daily_snapshot.py --date "${T0_DATE}" --analysis-date "${ANALYSIS_DATE}" --base-url "${TAIFEX_PROXY_BASE_URL}"
-          rc=$?
-          set -e
-          if [ "${rc}" -eq 0 ]; then
-            echo "TAIFEX snapshot created successfully."
-          elif [ "${rc}" -eq 3 ]; then
-            echo "TAIFEX snapshot already exists and passed integrity validation."
-            echo "Immutable artifact preserved."
-          else
-            echo "ERROR: TAIFEX snapshot failed with exit code ${rc}."
-            exit "${rc}"
-          fi
-
-      - name: Verify TWSE proxy T0 date propagation
-        id: twse_probe
-        if: steps.session.outputs.session_allowed == 'true'
-        shell: bash
-        env:
-          T0_DATE: ${{ steps.t0.outputs.t0 }}
-        run: |
-          set -euo pipefail
-          [[ -n "${T0_DATE}" ]]
-          twse_query_date="${T0_DATE//-/}"
-          twse_url="${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
-          echo "TWSE query date: ${twse_query_date}"
-          curl --fail --silent --show-error --max-time 30 "${twse_url}" -o /tmp/twse.json
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          expected_date = os.environ["T0_DATE"]
-          payload = json.loads(Path("/tmp/twse.json").read_text(encoding="utf-8"))
-          assert payload.get("ok") is True, payload
-          assert payload.get("date") == expected_date, payload
-          data = payload.get("data") or {}
-          for key in ("taiex", "market_statistics", "advance_decline"):
-              assert data.get(key) is not None, key
-          print("TWSE T0 proxy smoke test: PASS")
-          print(f"TWSE proxy date: {payload.get('date')}")
-          PY
-
-      - name: Repair invalid legacy source artifacts
-        id: repair
-        if: steps.session.outputs.session_allowed == 'true'
-        shell: bash
-        env:
-          T0_DATE: ${{ steps.t0.outputs.t0 }}
-        run: |
-          set -euo pipefail
-          python - <<'PY'
-          import json
-          import os
-          from pathlib import Path
-          date = os.environ["T0_DATE"]
-          snapshot = Path("data/snapshots") / date / "twse-snapshot.json"
-          stable = Path("data/twse") / f"{date}.json"
-          manifest = Path("data/manifests") / f"{date}.twse.json"
-          invalid = False
-          if snapshot.exists():
-              try:
-                  payload = json.loads(snapshot.read_text(encoding="utf-8"))
-                  normalized = ((payload.get("data") or {}).get("data") or {})
-                  invalid = any(normalized.get(k) is None for k in ("taiex", "market_statistics", "advance_decline"))
-              except Exception:
-                  invalid = True
-          if invalid:
-              for path in (snapshot, stable, manifest):
-                  if path.exists():
-                      path.unlink()
-                      print(f"Removed invalid legacy artifact: {path}")
-              print("Invalid TWSE artifact repaired on next snapshot build.")
-          else:
-              print("No invalid legacy TWSE artifact found.")
-          PY
+          python scripts/daily_snapshot.py --date "${{ steps.dates.outputs.t0 }}" --analysis-date "${{ steps.dates.outputs.runtime_date }}" --base-url "${TAIFEX_PROXY_BASE_URL}"
 
       - name: Build TWSE snapshot
-        id: twse
-        if: steps.session.outputs.session_allowed == 'true'
+        if: steps.dates.outputs.allowed == 'true'
         shell: bash
-        env:
-          T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
-          twse_query_date="${T0_DATE//-/}"
-          twse_url="${TWSE_PROXY_BASE_URL}?date=${twse_query_date}"
-          set +e
-          python scripts/twse_snapshot.py --date "${T0_DATE}" --base-url "${twse_url}"
-          rc=$?
-          set -e
-          if [ "${rc}" -eq 0 ]; then
-            echo "TWSE snapshot created successfully."
-          elif [ "${rc}" -eq 3 ]; then
-            echo "TWSE snapshot already exists and passed integrity validation."
-            echo "Immutable artifact preserved."
-          else
-            echo "ERROR: TWSE snapshot failed with exit code ${rc}."
-            exit "${rc}"
-          fi
+          date='${{ steps.dates.outputs.t0 }}'
+          python scripts/twse_snapshot.py --date "${date}" --base-url "${TWSE_PROXY_BASE_URL}?date=${date//-/}"
+
+      - name: Build SPOT snapshot
+        id: spot
+        if: steps.dates.outputs.allowed == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/spot_snapshot.py --date '${{ steps.dates.outputs.t0 }}'
 
       - name: Build premarket manifest
-        id: manifest
-        if: steps.session.outputs.session_allowed == 'true'
+        if: steps.dates.outputs.allowed == 'true'
         shell: bash
-        env:
-          ANALYSIS_DATE: ${{ steps.analysis_date.outputs.analysis_date }}
-          T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
-          set +e
-          python scripts/build_premarket_manifest.py --date "${T0_DATE}" --analysis-date "${ANALYSIS_DATE}"
-          rc=$?
-          set -e
-          if [ "${rc}" -eq 0 ]; then
-            echo "Premarket manifest created successfully."
-          elif [ "${rc}" -eq 3 ]; then
-            echo "Premarket manifest already exists and passed integrity validation."
-          else
-            echo "ERROR: Premarket manifest failed with exit code ${rc}."
-            exit "${rc}"
-          fi
+          python scripts/build_premarket_manifest.py --date '${{ steps.dates.outputs.t0 }}' --analysis-date '${{ steps.dates.outputs.runtime_date }}'
 
       - name: Build premarket AI inputs
-        id: ai_inputs
-        if: steps.session.outputs.session_allowed == 'true'
+        if: steps.dates.outputs.allowed == 'true'
         shell: bash
-        env:
-          ANALYSIS_DATE: ${{ steps.analysis_date.outputs.analysis_date }}
-          T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
-          set +e
-          python scripts/build_premarket_ai_inputs.py --analysis-date "${ANALYSIS_DATE}" --t0-date "${T0_DATE}"
-          rc=$?
-          set -e
-          if [ "${rc}" -eq 0 ]; then
-            echo "Premarket AI inputs created successfully."
-          elif [ "${rc}" -eq 3 ]; then
-            echo "Premarket AI inputs already exist and passed integrity validation."
-          else
-            echo "ERROR: Premarket AI inputs failed with exit code ${rc}."
-            exit "${rc}"
-          fi
+          python scripts/build_premarket_ai_inputs.py --analysis-date '${{ steps.dates.outputs.runtime_date }}' --t0-date '${{ steps.dates.outputs.t0 }}'
 
       - name: Validate AI inputs
-        id: validator
-        if: steps.session.outputs.session_allowed == 'true'
+        if: steps.dates.outputs.allowed == 'true'
         shell: bash
-        env:
-          ANALYSIS_DATE: ${{ steps.analysis_date.outputs.analysis_date }}
-          T0_DATE: ${{ steps.t0.outputs.t0 }}
         run: |
           set -euo pipefail
-          python scripts/validate_premarket_ai_inputs.py --analysis-date "${ANALYSIS_DATE}" --t0-date "${T0_DATE}"
+          python scripts/validate_premarket_ai_inputs.py --analysis-date '${{ steps.dates.outputs.runtime_date }}' --t0-date '${{ steps.dates.outputs.t0 }}'
 
       - name: READY_FOR_ANALYSIS gate
-        id: ready_gate
         if: always()
         shell: bash
-        env:
-          SESSION_ALLOWED: ${{ steps.session.outputs.session_allowed }}
-          SESSION_STATE: ${{ steps.session.outputs.session_state }}
-          T0_STATUS: ${{ steps.t0.outcome }}
-          TAIFEX_STATUS: ${{ steps.taifex.outcome }}
-          TWSE_PROBE_STATUS: ${{ steps.twse_probe.outcome }}
-          TWSE_STATUS: ${{ steps.twse.outcome }}
-          MANIFEST_STATUS: ${{ steps.manifest.outcome }}
-          AI_INPUT_STATUS: ${{ steps.ai_inputs.outcome }}
-          VALIDATOR_STATUS: ${{ steps.validator.outcome }}
         run: |
           set -euo pipefail
-          if [ "${SESSION_ALLOWED}" != "true" ]; then
-            echo "READY_FOR_ANALYSIS=false"
+          if [[ '${{ steps.dates.outputs.allowed }}' != 'true' ]]; then
+            echo 'READY_FOR_ANALYSIS=false'
             exit 0
           fi
-          echo "T0 outcome: ${T0_STATUS}"
-          echo "TAIFEX outcome: ${TAIFEX_STATUS}"
-          echo "TWSE probe outcome: ${TWSE_PROBE_STATUS}"
-          echo "TWSE outcome: ${TWSE_STATUS}"
-          echo "Manifest outcome: ${MANIFEST_STATUS}"
-          echo "AI input outcome: ${AI_INPUT_STATUS}"
-          echo "Validator outcome: ${VALIDATOR_STATUS}"
-          test "${T0_STATUS}" = "success"
-          test "${TAIFEX_STATUS}" = "success"
-          test "${TWSE_PROBE_STATUS}" = "success"
-          test "${TWSE_STATUS}" = "success"
-          test "${MANIFEST_STATUS}" = "success"
-          test "${AI_INPUT_STATUS}" = "success"
-          test "${VALIDATOR_STATUS}" = "success"
-          echo "READY_FOR_ANALYSIS=true"
-          {
-            echo "## READY_FOR_ANALYSIS"
-            echo ""
-            echo "READY_FOR_ANALYSIS=true"
-          } >> "${GITHUB_STEP_SUMMARY}"
+          [[ '${{ steps.spot.outcome }}' == success ]]
+          echo 'READY_FOR_ANALYSIS=true'
 
       - name: Commit and push generated data
-        if: >
-          steps.session.outputs.session_allowed == 'true' &&
-          steps.ready_gate.outcome == 'success'
+        if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
           set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add .
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add data/
           if git diff --cached --quiet; then
-            echo "No artifact changes to commit."
+            echo 'No artifact changes to commit.'
             exit 0
           fi
-          git commit -m "Update daily premarket snapshot ${{ steps.analysis_date.outputs.analysis_date }}"
+          git commit -m "Update daily premarket snapshot ${{ steps.dates.outputs.runtime_date }}"
           git push
