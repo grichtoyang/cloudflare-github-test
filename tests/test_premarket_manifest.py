@@ -25,11 +25,17 @@ class PreMarketManifestDateTests(unittest.TestCase):
         manifest["snapshot_sha256"] = build_premarket_manifest.sha256(snapshot_path)
         manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
+    def _write_all_sources(self, root: Path, taifex_manifest: dict) -> None:
+        self._write_source(root, "2026-09-10.json", taifex_manifest, "2026-09-10/taifex.json")
+        self._write_source(root, "2026-09-10.twse.json", {"analysis_date": "2026-09-10", "source": "TWSE", "ready_for_analysis": True, "published": True}, "2026-09-10/twse.json")
+        spot_path = root / "data" / "snapshots" / "2026-09-10" / "spot-snapshot.json"
+        spot_path.parent.mkdir(parents=True, exist_ok=True)
+        spot_path.write_text(json.dumps({"source": "SPOT", "date": "2026-09-10", "validation": {"ready_for_analysis": True}, "data": {"sample": {"ok": True}}}) + "\n", encoding="utf-8")
+
     def test_analysis_date_is_separate_from_t0(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_source(root, "2026-09-10.json", {"t0_trading_date": "2026-09-10", "source": "TAIFEX", "ready_for_analysis": True, "published": True}, "2026-09-10/taifex.json")
-            self._write_source(root, "2026-09-10.twse.json", {"analysis_date": "2026-09-10", "source": "TWSE", "ready_for_analysis": True, "published": True}, "2026-09-10/twse.json")
+            self._write_all_sources(root, {"t0_trading_date": "2026-09-10", "source": "TAIFEX", "ready_for_analysis": True, "published": True})
 
             with patch("sys.argv", ["build_premarket_manifest.py", "--date", "2026-09-10", "--analysis-date", "2026-09-11", "--output-root", str(root / "data")]):
                 rc = build_premarket_manifest.main()
@@ -46,8 +52,7 @@ class PreMarketManifestDateTests(unittest.TestCase):
     def test_source_data_date_must_match_t0(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            self._write_source(root, "2026-09-10.json", {"t0_trading_date": "2026-09-09", "source": "TAIFEX", "ready_for_analysis": True, "published": True}, "2026-09-10/taifex.json")
-            self._write_source(root, "2026-09-10.twse.json", {"analysis_date": "2026-09-10", "source": "TWSE", "ready_for_analysis": True, "published": True}, "2026-09-10/twse.json")
+            self._write_all_sources(root, {"t0_trading_date": "2026-09-09", "source": "TAIFEX", "ready_for_analysis": True, "published": True})
 
             with patch("sys.argv", ["build_premarket_manifest.py", "--date", "2026-09-10", "--analysis-date", "2026-09-11", "--output-root", str(root / "data")]):
                 rc = build_premarket_manifest.main()
