@@ -17,7 +17,7 @@ def num(v):
 
 def get(url):
     try:
-        r=urlopen(Request(url,headers={'accept':'application/json','user-agent':'daily-pre-market-analysis/1.4'}),timeout=45)
+        r=urlopen(Request(url,headers={'accept':'application/json','user-agent':'daily-pre-market-analysis/1.5'}),timeout=45)
         return json.loads(r.read().decode('utf-8'))
     except Exception:return None
 
@@ -59,6 +59,14 @@ def fetch(urls):
         if p is not None:return p,u
     return None,None
 
+def load_raw(root,name,date):
+    p=root/'raw'/f'{name}_{date}.json'
+    if not p.exists():return None
+    try:
+        obj=json.loads(p.read_text(encoding='utf-8'))
+        return obj.get('payload') if isinstance(obj,dict) and 'payload' in obj else obj
+    except Exception:return None
+
 def rwd(path,date8,extra=None):
     q={'date':date8,'response':'json'}
     if extra:q.update(extra)
@@ -94,14 +102,27 @@ def main():
     if tw.exists():
         try:base=json.loads(tw.read_text(encoding='utf-8'))
         except Exception:pass
-    raw=base.get('data',base) if isinstance(base,dict) else {};t=raw.get('taiex',{});br=raw.get('advance_decline',{})
-    t86,u86=fetch([rwd('fund/T86',date8,{'selectType':'ALL'})]);mi,umi=fetch([f'{TWSE_API}/exchangeReport/MI_MARGN?date={date8}']);sbl,usbl=fetch([f'{TWSE_API}/SBL/TWT96U?date={date8}']);listed,ul=fetch([f'{TWSE_API}/exchangeReport/FMTQIK?date={date8}'])
-    oq,uo=fetch([f'{TPEX_API}/tpex_mainboard_quotes?date={date8}',f'{TPEX_API}/tpex_mainboard_quotes']);om,um=fetch([f'{TPEX_API}/tpex_mainboard_margin_balance?date={date8}',f'{TPEX_API}/tpex_mainboard_margin_balance']);osbl,uos=fetch([f'{TPEX_API}/tpex_margin_sbl?date={date8}',f'{TPEX_API}/tpex_margin_sbl']);oh,uh=fetch([f'{TPEX_API}/tpex_mainborad_highlight?date={date8}',f'{TPEX_API}/tpex_mainborad_highlight'])
-    listed_total=amount(listed);otc_total=amount(oh)
-    lb=breadth(br);ob=breadth(oq)
+    raw=base.get('data',base) if isinstance(base,dict) else {}
+    mi_raw=load_raw(root,'twse_mi_index',d); ms_raw=load_raw(root,'twse_mi_index_ms',d)
+    t86=load_raw(root,'twse_t86',d); mi=load_raw(root,'twse_margin',d); sbl=load_raw(root,'twse_sbl',d); listed=load_raw(root,'twse_turnover',d)
+    oq=load_raw(root,'tpex_quotes',d); om=load_raw(root,'tpex_margin',d); osbl=load_raw(root,'tpex_sbl',d); oh=load_raw(root,'tpex_highlight',d)
+    if t86 is None:t86,_=fetch([rwd('fund/T86',date8,{'selectType':'ALL'})])
+    if mi is None:mi,_=fetch([f'{TWSE_API}/exchangeReport/MI_MARGN?date={date8}'])
+    if sbl is None:sbl,_=fetch([f'{TWSE_API}/SBL/TWT96U?date={date8}'])
+    if listed is None:listed,_=fetch([f'{TWSE_API}/exchangeReport/FMTQIK?date={date8}'])
+    if oq is None:oq,_=fetch([f'{TPEX_API}/tpex_mainboard_quotes?date={date8}',f'{TPEX_API}/tpex_mainboard_quotes'])
+    if om is None:om,_=fetch([f'{TPEX_API}/tpex_mainboard_margin_balance?date={date8}',f'{TPEX_API}/tpex_mainboard_margin_balance'])
+    if osbl is None:osbl,_=fetch([f'{TPEX_API}/tpex_margin_sbl?date={date8}',f'{TPEX_API}/tpex_margin_sbl'])
+    if oh is None:oh,_=fetch([f'{TPEX_API}/tpex_mainborad_highlight?date={date8}',f'{TPEX_API}/tpex_mainborad_highlight'])
+    t=raw.get('taiex',{})
+    if not t or any(t.get(k) is None for k in ('close','open','high','low')):
+        t={'close':find(mi_raw,('收盤指數','收盤','指數','close')),'open':find(mi_raw,('開盤指數','開盤','open')),'high':find(mi_raw,('最高指數','最高','high')),'low':find(mi_raw,('最低指數','最低','low')),'change_points':find(mi_raw,('漲跌點數','漲跌','change')),'change_percent':find(mi_raw,('漲跌幅','漲跌百分比','changepercent'))}
+    lb=breadth(ms_raw) if ms_raw is not None else raw.get('advance_decline',{})
+    ob=breadth(oq)
+    listed_total=amount(listed); otc_total=amount(oh)
     data={'taiex':{'close':num(t.get('close')),'open':num(t.get('open')),'high':num(t.get('high')),'low':num(t.get('low')),'change_points':num(t.get('change',t.get('change_points'))),'change_percent':num(t.get('change_percent')),'turnover_value':listed_total},'listed_breadth':lb,'otc_breadth':ob,'institutional':{'unit':'shares','foreign':find(t86,('外陸資買賣超','外資及陸資買賣超','外資買賣超','foreign')),'investment_trust':find(t86,('投信買賣超','investmenttrust')),'dealer':find(t86,('自營商買賣超','dealer')),'total':find(t86,('三大法人買賣超合計','三大法人合計','合計買賣超'))},'margin':{'financing_balance':add(find(mi,('融資餘額','financingbalance')),find(om,('融資餘額','融資餘額(元)','financingbalance'))),'financing_change':add(find(mi,('融資增減','融資增減(元)','financingchange')),find(om,('融資增減','融資增減(元)','financingchange'))),'short_balance':add(find(mi,('融券餘額','shortbalance')),find(om,('融券餘額','融券餘額(張)','shortbalance'))),'short_change':add(find(mi,('融券增減','shortchange')),find(om,('融券增減','融券增減','shortchange'))),'maintenance_ratio':find(mi,('融資維持率','maintenanceratio'))},'sbl':{'balance':add(find(sbl,('借券餘額','balance')),find(osbl,('借券餘額','balance'))),'short_sale_balance':add(find(sbl,('借券賣出餘額','shortsalebalance')),find(osbl,('借券賣出餘額','借券賣出餘額','shortsalebalance'))),'short_sale_change':add(find(sbl,('借券賣出增減','shortsalechange')),find(osbl,('借券賣出增減','shortsalechange')))},'turnover':{'listed':listed_total,'otc':otc_total,'total':add(listed_total,otc_total)}}
     missing=[f'taiex.{k}' for k in ('close','change_points','change_percent') if data['taiex'][k] is None];unavailable=[f'{g}.{k}' for g,v in data.items() for k,x in v.items() if x is None]
-    out={'ok':not missing and not unavailable,'source':'SPOT','date':d,'retrieved_at':datetime.now(timezone.utc).isoformat(),'timezone':'UTC','data':data,'sources':{'twse_snapshot':str(tw),'twse_t86':u86,'twse_margin':umi,'twse_sbl':usbl,'twse_turnover':ul,'tpex_breadth':uo,'tpex_margin':um,'tpex_sbl':uos,'tpex_turnover':uh},'missing_required':missing,'unavailable_fields':unavailable,'integrity_errors':[]}
+    out={'ok':not missing and not unavailable,'source':'SPOT','date':d,'retrieved_at':datetime.now(timezone.utc).isoformat(),'timezone':'UTC','data':data,'sources':{'raw_diagnostic':str(root/'raw'),'twse_snapshot':str(tw)},'missing_required':missing,'unavailable_fields':unavailable,'integrity_errors':[]}
     for p in (root/'snapshots'/d/'spot-snapshot.json',root/'spot'/f'{d}.json'):
         p.parent.mkdir(parents=True,exist_ok=True);p.write_text(json.dumps(out,ensure_ascii=False,indent=2)+'\n',encoding='utf-8')
     print(json.dumps({'date':d,'ok':out['ok'],'missing_required':missing,'unavailable_fields':unavailable,'integrity_errors':[]},ensure_ascii=False));return 0 if out['ok'] else 1
