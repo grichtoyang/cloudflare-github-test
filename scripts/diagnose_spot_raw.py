@@ -14,35 +14,15 @@ TPEX_API = "https://www.tpex.org.tw/openapi/v1"
 
 
 def request_json(url: str):
-    request = Request(
-        url,
-        headers={
-            "accept": "application/json",
-            "user-agent": "daily-pre-market-analysis-raw-diagnostic/1.0",
-        },
-    )
+    request = Request(url, headers={"accept": "application/json", "user-agent": "daily-pre-market-analysis-raw-diagnostic/1.0"})
     try:
         with urlopen(request, timeout=45) as response:
             body = response.read().decode("utf-8", errors="replace")
             try:
                 payload = json.loads(body)
-                return {
-                    "url": url,
-                    "ok": True,
-                    "http_status": getattr(response, "status", 200),
-                    "content_type": response.headers.get("content-type"),
-                    "json_type": type(payload).__name__,
-                    "payload": payload,
-                }
+                return {"url": url, "ok": True, "http_status": getattr(response, "status", 200), "content_type": response.headers.get("content-type"), "json_type": type(payload).__name__, "payload": payload}
             except json.JSONDecodeError as exc:
-                return {
-                    "url": url,
-                    "ok": False,
-                    "http_status": getattr(response, "status", 200),
-                    "content_type": response.headers.get("content-type"),
-                    "error": f"invalid_json: {exc}",
-                    "body_prefix": body[:1000],
-                }
+                return {"url": url, "ok": False, "http_status": getattr(response, "status", 200), "content_type": response.headers.get("content-type"), "error": f"invalid_json: {exc}", "body_prefix": body[:1000]}
     except Exception as exc:
         return {"url": url, "ok": False, "error": f"request_error: {exc}"}
 
@@ -66,6 +46,7 @@ def main() -> int:
     endpoints = {
         "twse_mi_index": f"{TWSE_API}/exchangeReport/MI_INDEX?date={date8}&type=IND",
         "twse_mi_index_ms": f"{TWSE_API}/exchangeReport/MI_INDEX?date={date8}&type=MS",
+        "twse_listed_breadth": f"{TWSE_API}/exchangeReport/twtazu_od?date={date8}",
         "twse_t86": twse_rwd("fund/T86", date8, {"selectType": "ALL"}),
         "twse_margin": f"{TWSE_API}/exchangeReport/MI_MARGN?date={date8}",
         "twse_sbl": f"{TWSE_API}/SBL/TWT96U?date={date8}",
@@ -76,33 +57,14 @@ def main() -> int:
         "tpex_highlight": f"{TPEX_API}/tpex_mainborad_highlight?date={date8}",
     }
 
-    summary = {
-        "source": "SPOT_RAW_DIAGNOSTIC",
-        "date": args.date,
-        "retrieved_at": datetime.now(timezone.utc).isoformat(),
-        "timezone": "UTC",
-        "endpoints": {},
-    }
-
+    summary = {"source": "SPOT_RAW_DIAGNOSTIC", "date": args.date, "retrieved_at": datetime.now(timezone.utc).isoformat(), "timezone": "UTC", "endpoints": {}}
     for name, url in endpoints.items():
         result = request_json(url)
         target = output / f"{name}_{args.date}.json"
         target.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         payload = result.get("payload")
-        summary["endpoints"][name] = {
-            "url": url,
-            "ok": result.get("ok", False),
-            "http_status": result.get("http_status"),
-            "content_type": result.get("content_type"),
-            "json_type": result.get("json_type"),
-            "top_level_keys": list(payload.keys()) if isinstance(payload, dict) else None,
-            "list_length": len(payload) if isinstance(payload, list) else None,
-            "file": str(target),
-            "error": result.get("error"),
-        }
-
-    summary_path = output / f"summary_{args.date}.json"
-    summary_path.write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        summary["endpoints"][name] = {"url": url, "ok": result.get("ok", False), "http_status": result.get("http_status"), "content_type": result.get("content_type"), "json_type": result.get("json_type"), "top_level_keys": list(payload.keys()) if isinstance(payload, dict) else None, "list_length": len(payload) if isinstance(payload, list) else None, "file": str(target), "error": result.get("error")}
+    (output / f"summary_{args.date}.json").write_text(json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps(summary, ensure_ascii=False))
     return 0
 
