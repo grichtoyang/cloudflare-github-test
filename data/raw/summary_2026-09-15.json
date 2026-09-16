@@ -1,7 +1,7 @@
 {
   "source": "SPOT_RAW_DIAGNOSTIC",
   "date": "2026-09-15",
-  "retrieved_at": "2026-09-16T08:44:34.073065+00:00",
+  "retrieved_at": "2026-09-16T08:52:22.938086+00:00",
   "timezone": "UTC",
   "endpoints": {
     "twse_mi_index": {
