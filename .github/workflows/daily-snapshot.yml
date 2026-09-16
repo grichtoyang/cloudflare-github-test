@@ -59,49 +59,72 @@ jobs:
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          set +e
           python scripts/daily_snapshot.py --date "${{ steps.dates.outputs.t0 }}" --analysis-date "${{ steps.dates.outputs.runtime_date }}" --base-url "${TAIFEX_PROXY_BASE_URL}"
+          status=$?
+          set -e
+          if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
 
       - name: Build TWSE snapshot
         id: twse
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
-          date='${{ steps.dates.outputs.t0 }}'
-          python scripts/twse_snapshot.py --date "${date}" --base-url "${TWSE_PROXY_BASE_URL}?date=${date//-/}"
+          set -uo pipefail
+          set +e
+          python scripts/twse_snapshot.py --date '${{ steps.dates.outputs.t0 }}' --base-url "${TWSE_PROXY_BASE_URL}?date=${{ steps.dates.outputs.t0 }}"
+          status=$?
+          set -e
+          if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
 
       - name: Build SPOT snapshot
         id: spot
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          set +e
           python scripts/spot_snapshot.py --date '${{ steps.dates.outputs.t0 }}'
+          status=$?
+          set -e
+          if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
 
       - name: Build premarket manifest
         id: manifest
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          set +e
           python scripts/build_premarket_manifest.py --date '${{ steps.dates.outputs.t0 }}' --analysis-date '${{ steps.dates.outputs.runtime_date }}'
+          status=$?
+          set -e
+          if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
 
       - name: Build premarket AI inputs
         id: ai_inputs
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          set +e
           python scripts/build_premarket_ai_inputs.py --analysis-date '${{ steps.dates.outputs.runtime_date }}' --t0-date '${{ steps.dates.outputs.t0 }}'
+          status=$?
+          set -e
+          if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
 
       - name: Validate AI inputs
         id: validator
         if: steps.dates.outputs.allowed == 'true'
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          set +e
           python scripts/validate_premarket_ai_inputs.py --analysis-date '${{ steps.dates.outputs.runtime_date }}' --t0-date '${{ steps.dates.outputs.t0 }}'
+          status=$?
+          set -e
+          if [[ "$status" != 0 && "$status" != 3 ]]; then exit "$status"; fi
 
       - name: READY_FOR_ANALYSIS gate
         id: ready_gate
