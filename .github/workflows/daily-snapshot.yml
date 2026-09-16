@@ -42,7 +42,7 @@ jobs:
           runtime_minute="$(TZ=Asia/Taipei date '+%M')"
           runtime_minutes=$((10#$runtime_hour * 60 + 10#$runtime_minute))
           allowed=false
-          if (( runtime_minutes >= 300 && runtime_minutes < 1020 )); then allowed=true; fi
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]] || (( runtime_minutes >= 300 && runtime_minutes < 1020 )); then allowed=true; fi
           echo "runtime_date=${runtime_date}" >> "$GITHUB_OUTPUT"
           echo "allowed=${allowed}" >> "$GITHUB_OUTPUT"
           if [[ "${allowed}" != true ]]; then exit 0; fi
