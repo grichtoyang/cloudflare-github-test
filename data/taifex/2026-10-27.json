@@ -1,0 +1,454 @@
+{
+  "date": "2026-10-27",
+  "timestamp": "2026-10-27T10:08:05.943Z",
+  "source": "TAIFEX",
+  "proxy": "pre-market-data-api",
+  "data": {
+    "ok": true,
+    "service": "pre-market-data-api",
+    "version": "1.0.0",
+    "architecture": "Service Binding",
+    "date": "2026-10-27",
+    "source": "TAIFEX Proxy V1.0",
+    "data": {
+      "futures_price": {
+        "ok": true,
+        "source": "TAIFEX",
+        "dataset": "futures_market",
+        "market": "TX",
+        "date": "2026-10-27",
+        "date_source": "page",
+        "data": [
+          {
+            "contract_month": "202611",
+            "open": 46505,
+            "high": 46846,
+            "low": 46050,
+            "close": 46081,
+            "change": -153,
+            "change_percent": "-0.33",
+            "after_hours_volume": 39368,
+            "regular_volume": 61110,
+            "total_volume": 100478,
+            "settlement_price": 46106,
+            "open_interest": 116866,
+            "best_bid": 46081,
+            "best_ask": 46082,
+            "historical_high": 50440,
+            "historical_low": 44435
+          },
+          {
+            "contract_month": "202612",
+            "open": 46663,
+            "high": 46975,
+            "low": 46198,
+            "close": 46213,
+            "change": -149,
+            "change_percent": "-0.32",
+            "after_hours_volume": 268,
+            "regular_volume": 475,
+            "total_volume": 743,
+            "settlement_price": 46232,
+            "open_interest": 2747,
+            "best_bid": 46208,
+            "best_ask": 46211,
+            "historical_high": 50560,
+            "historical_low": 27382
+          },
+          {
+            "contract_month": "202701",
+            "open": 46950,
+            "high": 46950,
+            "low": 46400,
+            "close": 46700,
+            "change": 97,
+            "change_percent": "0.21",
+            "after_hours_volume": 48,
+            "regular_volume": 18,
+            "total_volume": 66,
+            "settlement_price": 46366,
+            "open_interest": 47,
+            "best_bid": 46364,
+            "best_ask": 46368,
+            "historical_high": 47450,
+            "historical_low": 45889
+          },
+          {
+            "contract_month": "202703",
+            "open": 47300,
+            "high": 47426,
+            "low": 46934,
+            "close": 46936,
+            "change": -35,
+            "change_percent": "-0.07",
+            "after_hours_volume": 6,
+            "regular_volume": 5,
+            "total_volume": 11,
+            "settlement_price": 46744,
+            "open_interest": 108,
+            "best_bid": 46737,
+            "best_ask": 46751,
+            "historical_high": 51041,
+            "historical_low": 32400
+          },
+          {
+            "contract_month": "202706",
+            "open": 48014,
+            "high": 48014,
+            "low": 47500,
+            "close": 47500,
+            "change": -8,
+            "change_percent": "-0.02",
+            "after_hours_volume": 5,
+            "regular_volume": 12,
+            "total_volume": 17,
+            "settlement_price": 47242,
+            "open_interest": 105,
+            "best_bid": 47233,
+            "best_ask": 47252,
+            "historical_high": 51469,
+            "historical_low": 41461
+          },
+          {
+            "contract_month": "202709",
+            "open": 0,
+            "high": 0,
+            "low": 0,
+            "close": 0,
+            "change": 0,
+            "change_percent": "-",
+            "after_hours_volume": 22,
+            "regular_volume": 0,
+            "total_volume": 22,
+            "settlement_price": 47484,
+            "open_interest": 67,
+            "best_bid": 47476,
+            "best_ask": 47493,
+            "historical_high": 51527,
+            "historical_low": 47069
+          }
+        ],
+        "parser": {
+          "version": "4.1",
+          "row_count": 21,
+          "contracts": 6
+        }
+      },
+      "futures_institutional": {
+        "ok": true,
+        "source": "TAIFEX",
+        "dataset": "futures_institutional",
+        "market": "TX",
+        "session": "regular",
+        "date": "2026-10-27",
+        "date_source": "page",
+        "data": [
+          {
+            "institution": "dealer",
+            "long_volume": 5810,
+            "long_amount": 53829327,
+            "short_volume": 7604,
+            "short_amount": 70413650,
+            "net_volume": -1794,
+            "net_amount": -16584322
+          },
+          {
+            "institution": "investment_trust",
+            "long_volume": 1554,
+            "long_amount": 14336666,
+            "short_volume": 103,
+            "short_amount": 955258,
+            "net_volume": 1451,
+            "net_amount": 13381408
+          },
+          {
+            "institution": "foreign",
+            "long_volume": 59401,
+            "long_amount": 549799197,
+            "short_volume": 58180,
+            "short_amount": 538461878,
+            "net_volume": 1221,
+            "net_amount": 11337319
+          }
+        ],
+        "parser": {
+          "version": "4.1",
+          "found": true,
+          "row_count": 83
+        }
+      },
+      "futures_institutional_oi": {
+        "ok": true,
+        "source": "TAIFEX",
+        "dataset": "futures_institutional_oi",
+        "market": "TX",
+        "session": "regular",
+        "date": "2026-10-27",
+        "data": [
+          {
+            "institution": "dealer",
+            "long_oi": 5615,
+            "long_oi_amount": 51809485,
+            "short_oi": 4161,
+            "short_oi_amount": 38403547,
+            "net_oi": 1454,
+            "net_oi_amount": 13405938
+          },
+          {
+            "institution": "investment_trust",
+            "long_oi": 87803,
+            "long_oi_amount": 809649024,
+            "short_oi": 2751,
+            "short_oi_amount": 25367521,
+            "net_oi": 85052,
+            "net_oi_amount": 784281503
+          },
+          {
+            "institution": "foreign",
+            "long_oi": 9755,
+            "long_oi_amount": 89954904,
+            "short_oi": 95798,
+            "short_oi_amount": 883449991,
+            "net_oi": -86043,
+            "net_oi_amount": -793495087
+          }
+        ],
+        "parser": {
+          "version": "4.2",
+          "found": true,
+          "row_count": 83
+        }
+      }
+    },
+    "validation": {
+      "futures_price": true,
+      "futures_institutional": true,
+      "futures_institutional_oi": true
+    },
+    "debug": {
+      "futures_price": {
+        "ok": true,
+        "status": 200,
+        "data": {
+          "ok": true,
+          "source": "TAIFEX",
+          "dataset": "futures_market",
+          "market": "TX",
+          "date": "2026-10-27",
+          "date_source": "page",
+          "data": [
+            {
+              "contract_month": "202611",
+              "open": 46505,
+              "high": 46846,
+              "low": 46050,
+              "close": 46081,
+              "change": -153,
+              "change_percent": "-0.33",
+              "after_hours_volume": 39368,
+              "regular_volume": 61110,
+              "total_volume": 100478,
+              "settlement_price": 46106,
+              "open_interest": 116866,
+              "best_bid": 46081,
+              "best_ask": 46082,
+              "historical_high": 50440,
+              "historical_low": 44435
+            },
+            {
+              "contract_month": "202612",
+              "open": 46663,
+              "high": 46975,
+              "low": 46198,
+              "close": 46213,
+              "change": -149,
+              "change_percent": "-0.32",
+              "after_hours_volume": 268,
+              "regular_volume": 475,
+              "total_volume": 743,
+              "settlement_price": 46232,
+              "open_interest": 2747,
+              "best_bid": 46208,
+              "best_ask": 46211,
+              "historical_high": 50560,
+              "historical_low": 27382
+            },
+            {
+              "contract_month": "202701",
+              "open": 46950,
+              "high": 46950,
+              "low": 46400,
+              "close": 46700,
+              "change": 97,
+              "change_percent": "0.21",
+              "after_hours_volume": 48,
+              "regular_volume": 18,
+              "total_volume": 66,
+              "settlement_price": 46366,
+              "open_interest": 47,
+              "best_bid": 46364,
+              "best_ask": 46368,
+              "historical_high": 47450,
+              "historical_low": 45889
+            },
+            {
+              "contract_month": "202703",
+              "open": 47300,
+              "high": 47426,
+              "low": 46934,
+              "close": 46936,
+              "change": -35,
+              "change_percent": "-0.07",
+              "after_hours_volume": 6,
+              "regular_volume": 5,
+              "total_volume": 11,
+              "settlement_price": 46744,
+              "open_interest": 108,
+              "best_bid": 46737,
+              "best_ask": 46751,
+              "historical_high": 51041,
+              "historical_low": 32400
+            },
+            {
+              "contract_month": "202706",
+              "open": 48014,
+              "high": 48014,
+              "low": 47500,
+              "close": 47500,
+              "change": -8,
+              "change_percent": "-0.02",
+              "after_hours_volume": 5,
+              "regular_volume": 12,
+              "total_volume": 17,
+              "settlement_price": 47242,
+              "open_interest": 105,
+              "best_bid": 47233,
+              "best_ask": 47252,
+              "historical_high": 51469,
+              "historical_low": 41461
+            },
+            {
+              "contract_month": "202709",
+              "open": 0,
+              "high": 0,
+              "low": 0,
+              "close": 0,
+              "change": 0,
+              "change_percent": "-",
+              "after_hours_volume": 22,
+              "regular_volume": 0,
+              "total_volume": 22,
+              "settlement_price": 47484,
+              "open_interest": 67,
+              "best_bid": 47476,
+              "best_ask": 47493,
+              "historical_high": 51527,
+              "historical_low": 47069
+            }
+          ],
+          "parser": {
+            "version": "4.1",
+            "row_count": 21,
+            "contracts": 6
+          }
+        },
+        "path": "/futures-price"
+      },
+      "futures_institutional": {
+        "ok": true,
+        "status": 200,
+        "data": {
+          "ok": true,
+          "source": "TAIFEX",
+          "dataset": "futures_institutional",
+          "market": "TX",
+          "session": "regular",
+          "date": "2026-10-27",
+          "date_source": "page",
+          "data": [
+            {
+              "institution": "dealer",
+              "long_volume": 5810,
+              "long_amount": 53829327,
+              "short_volume": 7604,
+              "short_amount": 70413650,
+              "net_volume": -1794,
+              "net_amount": -16584322
+            },
+            {
+              "institution": "investment_trust",
+              "long_volume": 1554,
+              "long_amount": 14336666,
+              "short_volume": 103,
+              "short_amount": 955258,
+              "net_volume": 1451,
+              "net_amount": 13381408
+            },
+            {
+              "institution": "foreign",
+              "long_volume": 59401,
+              "long_amount": 549799197,
+              "short_volume": 58180,
+              "short_amount": 538461878,
+              "net_volume": 1221,
+              "net_amount": 11337319
+            }
+          ],
+          "parser": {
+            "version": "4.1",
+            "found": true,
+            "row_count": 83
+          }
+        },
+        "path": "/futures-institutional"
+      },
+      "futures_institutional_oi": {
+        "ok": true,
+        "status": 200,
+        "data": {
+          "ok": true,
+          "source": "TAIFEX",
+          "dataset": "futures_institutional_oi",
+          "market": "TX",
+          "session": "regular",
+          "date": "2026-10-27",
+          "data": [
+            {
+              "institution": "dealer",
+              "long_oi": 5615,
+              "long_oi_amount": 51809485,
+              "short_oi": 4161,
+              "short_oi_amount": 38403547,
+              "net_oi": 1454,
+              "net_oi_amount": 13405938
+            },
+            {
+              "institution": "investment_trust",
+              "long_oi": 87803,
+              "long_oi_amount": 809649024,
+              "short_oi": 2751,
+              "short_oi_amount": 25367521,
+              "net_oi": 85052,
+              "net_oi_amount": 784281503
+            },
+            {
+              "institution": "foreign",
+              "long_oi": 9755,
+              "long_oi_amount": 89954904,
+              "short_oi": 95798,
+              "short_oi_amount": 883449991,
+              "net_oi": -86043,
+              "net_oi_amount": -793495087
+            }
+          ],
+          "parser": {
+            "version": "4.2",
+            "found": true,
+            "row_count": 83
+          }
+        },
+        "path": "/futures-institutional-oi?date=2026-10-27"
+      }
+    }
+  }
+}
